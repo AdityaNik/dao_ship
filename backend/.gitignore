@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build
+dist/
+build/
+
+# system files
+.DS_Store
+Thumbs.db
+
+# log files
+*.log
+
+# env files
+.env
+.env.local
+
+# editor folders
+.vscode/
+.idea/
+
+# Windows-specific
+ehthumbs.db
+desktop.ini
