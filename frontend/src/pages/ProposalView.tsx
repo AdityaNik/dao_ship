@@ -210,7 +210,7 @@ const ProposalView = () => {
 
   return (
     <div className="min-h-screen bg-gradient-background">
-      <Navigation />
+      {/* <Navigation /> */}
 
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4">

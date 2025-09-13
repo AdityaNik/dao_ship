@@ -12,6 +12,7 @@ import ProposalView from "./pages/ProposalView";
 import NotFound from "./pages/NotFound";
 import { WagmiProvider } from "wagmi";
 import { config } from "./lib/config";
+import Navigation from "./components/navigation";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <Navigation />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/explore" element={<Explore />} />
