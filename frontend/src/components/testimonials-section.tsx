@@ -18,7 +18,7 @@ const testimonials = [
     avatar: "https://placehold.co/100x100?text=MC"
   },
   {
-    quote: "We've tried several DAO platforms, but DAOShip's integration with Algorand offers the best performance and lowest fees by far.",
+    quote: "We've tried several DAO platforms, but DAOShip's integration with Avalanche offers the best performance and lowest fees by far.",
     author: "Elena Rodriguez",
     title: "Operations Director, DeFi Collective",
     avatar: "https://placehold.co/100x100?text=ER"

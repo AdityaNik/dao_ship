@@ -26,6 +26,7 @@ interface ValidationErrors {
   name?: string;
   description?: string;
   votingPeriod?: string;
+  stakingPeriod?: string;
   quorum?: string;
   minTokens?: string;
   tokenName?: string;
@@ -56,7 +57,8 @@ const CreateDAO = () => {
     tokenName: "",
     tokenSymbol: "",
     tokenSupply: 1000000,
-    votingPeriod: 7,
+    votingPeriod: 10,
+    stakingPeriod: 3,
     quorum: 50,
     minTokens: 100,
     logo: null,
@@ -90,7 +92,7 @@ const CreateDAO = () => {
 
   // Validation functions for each step
   const validateStep = (stepIndex) => {
-    const errors: { name?: string; description?: string; votingPeriod?: string; quorum?: string; minTokens?: string; tokenName?: string; tokenSymbol?: string; githubRepo?: string } = {};
+    const errors: ValidationErrors = {};
 
     switch (stepIndex) {
       case 0: // Basic Information
@@ -103,6 +105,9 @@ const CreateDAO = () => {
         break;
 
       case 1: // Governance Parameters
+        if (formData.stakingPeriod < 1 || formData.stakingPeriod > 30) {
+          errors.stakingPeriod = "Staking period must be between 1 and 30 days";
+        }
         if (formData.votingPeriod < 1 || formData.votingPeriod > 30) {
           errors.votingPeriod = "Voting period must be between 1 and 30 days";
         }
@@ -228,7 +233,7 @@ const CreateDAO = () => {
       // Use process.env.VITE_GITHUB_TOKEN or import.meta.env.VITE_GITHUB_TOKEN
       // assuming you have it set up in your build environment.
       // For this example, I'm keeping the placeholder as provided.
-      const GITHUB_TOKEN = "Add_YOUR_GITHUB_TOKEN_HERE"; // This token needs to be valid and stored securely
+      const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN; // This token needs to be valid and stored securely
 
       if (!GITHUB_TOKEN) {
         throw new Error("GitHub API token is not configured. Please set VITE_GITHUB_TOKEN in your .env file.");
@@ -430,6 +435,7 @@ const CreateDAO = () => {
         tokenSymbol: formData.tokenSymbol,
         tokenSupply: formData.tokenSupply,
         votingPeriod: formData.votingPeriod,
+        stakingPeriod: formData.stakingPeriod,
         quorum: formData.quorum,
         minTokens: formData.minTokens,
         githubRepo: formData.githubRepo,
@@ -525,7 +531,6 @@ const CreateDAO = () => {
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  placeholder="Describe your DAO's purpose and goals..."
                   required
                 />
                 {validationErrors.description && (
@@ -575,6 +580,21 @@ const CreateDAO = () => {
       case 1: // Governance Parameters
         return (
           <div className="space-y-6">
+            <div>
+              <GlassmorphicSlider
+                label="Staking Period (Days)"
+                min={1}
+                max={30}
+                value={formData.stakingPeriod}
+                onChange={(value) =>
+                  setFormData({ ...formData, stakingPeriod: value })
+                }
+                unit=" days"
+              />
+              {validationErrors.stakingPeriod && (
+                <p className="text-red-400 text-sm mt-1">{validationErrors.stakingPeriod}</p>
+              )}
+            </div>
             <div>
               <GlassmorphicSlider
                 label="Voting Period (Days)"
@@ -671,7 +691,6 @@ const CreateDAO = () => {
                 name="githubRepo"
                 value={formData.githubRepo}
                 onChange={handleChange}
-                placeholder="https://github.com/username/repo"
                 required
               />
               {validationErrors.githubRepo && (
@@ -858,7 +877,7 @@ const CreateDAO = () => {
               </div>
             </div>
 
-            <div className="p-4 glass-card rounded-lg">
+            {/* <div className="p-4 glass-card rounded-lg">
               <h4 className="text-lg font-semibold text-white mb-4">Ongoing Contribution Rewards</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <GlassmorphicInput
@@ -914,7 +933,7 @@ const CreateDAO = () => {
                   })}
                 />
               </div>
-            </div>
+            </div> */}
 
             <div className="p-4 glass-card rounded-lg">
               <h4 className="text-lg font-semibold text-white mb-4">Voting Parameters</h4>
@@ -1122,6 +1141,11 @@ const CreateDAO = () => {
                   </div>
 
                   <div>
+                    <p className="text-sm text-white/60">Staking Period</p>
+                    <p className="text-white">{formData.stakingPeriod} days</p>
+                  </div>
+
+                  <div>
                     <p className="text-sm text-white/60">Voting Period</p>
                     <p className="text-white">{formData.votingPeriod} days</p>
                   </div>
@@ -1194,7 +1218,7 @@ const CreateDAO = () => {
                 <span className="text-daoship-mint font-medium">
                   Ready to launch!
                 </span>{" "}
-                By submitting, you'll deploy this DAO to the Algorand
+                By submitting, you'll deploy this DAO to the Avalanche
                 blockchain. This action is irreversible.
               </p>
             </div>

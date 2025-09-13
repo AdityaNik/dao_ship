@@ -12,25 +12,25 @@ const featuresData = [
   },
   {
     title: "Flexible Governance",
-    description: "Customize voting periods, quorum percentages, and create proposals using Algorand's powerful consensus mechanism.",
+    description: "Customize voting periods, quorum percentages, and create proposals using Avalanche's powerful consensus mechanism.",
     icon: Vote,
     color: "bg-gradient-to-br from-blue-500 to-daoship-mint",
   },
   {
-    title: "Secure on Algorand",
-    description: "Built on Algorand's fast, secure, and carbon-negative blockchain technology — perfect for sustainable projects.",
+    title: "Secure on Avalanche",
+    description: "Built on Avalanche's fast, secure, and carbon-negative blockchain technology — perfect for sustainable projects.",
     icon: Shield,
     color: "bg-gradient-to-br from-daoship-mint to-green-500",
   },
   {
     title: "Token Management",
-    description: "Create and distribute governance tokens seamlessly with built-in Algorand Standard Asset (ASA) integration.",
+    description: "Create and distribute governance tokens seamlessly with built-in Avalanche Standard Asset (ASA) integration.",
     icon: Wallet,
     color: "bg-gradient-to-br from-yellow-500 to-daoship-yellow",
   },
   {
     title: "Fast Transactions",
-    description: "Experience almost instant finality and microtransactions with Algorand's cutting-edge Pure Proof-of-Stake protocol.",
+    description: "Experience almost instant finality and microtransactions with Avalanche's cutting-edge Pure Proof-of-Stake protocol.",
     icon: Zap,
     color: "bg-gradient-to-br from-orange-500 to-red-500",
   },
@@ -94,7 +94,7 @@ const FeaturesSection = () => {
           </h2>
           
           <p className="text-lg text-daoship-text-gray/80">
-            Leverage the power of Algorand with our comprehensive suite of tools designed specifically for builders and creators.
+            Leverage the power of Avalanche with our comprehensive suite of tools designed specifically for builders and creators.
           </p>
         </div>
 

@@ -5,9 +5,9 @@ import GlassmorphicCard from "@/components/ui/glassmorphic-card";
 
 const ecosystemItems = [
   {
-    name: "Algorand Foundation",
+    name: "Avalanche Foundation",
     logo: "https://placehold.co/100x100?text=A",
-    description: "Official foundation supporting the Algorand ecosystem and network growth"
+    description: "Official foundation supporting the Avalanche ecosystem and network growth"
   },
   {
     name: "AlgoFi",
@@ -17,22 +17,22 @@ const ecosystemItems = [
   {
     name: "Pera Wallet",
     logo: "https://placehold.co/100x100?text=PW",
-    description: "Mobile wallet for the Algorand blockchain with a focus on simplicity"
+    description: "Mobile wallet for the Avalanche blockchain with a focus on simplicity"
   },
   {
-    name: "Algorand NFT Marketplace",
+    name: "Avalanche NFT Marketplace",
     logo: "https://placehold.co/100x100?text=NFT",
-    description: "Platform for digital collectibles powered by Algorand's technology"
+    description: "Platform for digital collectibles powered by Avalanche's technology"
   },
   {
     name: "AlgoDesk",
     logo: "https://placehold.co/100x100?text=AD",
-    description: "Multi-functional tools platform for Algorand blockchain users"
+    description: "Multi-functional tools platform for Avalanche blockchain users"
   },
   {
     name: "Tinyman",
     logo: "https://placehold.co/100x100?text=TM",
-    description: "Decentralized exchange built on Algorand blockchain"
+    description: "Decentralized exchange built on Avalanche blockchain"
   }
 ];
 
@@ -83,11 +83,11 @@ const EcosystemSection = () => {
           </div>
           
           <h2 className="text-3xl md:text-5xl font-bold mb-6 gradient-text">
-            Connected to the <span className="text-daoship-purple">Algorand</span> Ecosystem
+            Connected to the <span className="text-daoship-purple">Avalanche</span> Ecosystem
           </h2>
           
           <p className="text-lg text-daoship-text-gray/80">
-            DAOShip integrates with leading platforms and services in the Algorand ecosystem to provide a seamless experience.
+            DAOShip integrates with leading platforms and services in the Avalanche ecosystem to provide a seamless experience.
           </p>
         </div>
         

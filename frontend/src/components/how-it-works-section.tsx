@@ -6,13 +6,13 @@ const steps = [
   {
     number: "01",
     title: "Connect Your Wallet",
-    description: "Link your Algorand wallet securely to get started with DAOShip. We support Pera Wallet, MyAlgo and more.",
+    description: "Link your Avalanche wallet securely to get started with DAOShip. We support Pera Wallet, MyAlgo and more.",
     delay: 0,
   },
   {
     number: "02",
     title: "Create Your DAO",
-    description: "Set up governance parameters, issue your token on Algorand, and customize voting rules to fit your community's needs.",
+    description: "Set up governance parameters, issue your token on Avalanche, and customize voting rules to fit your community's needs.",
     delay: 200,
   },
   {

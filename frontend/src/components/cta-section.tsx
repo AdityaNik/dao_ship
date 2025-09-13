@@ -38,7 +38,7 @@ const CtaSection = () => {
           </h2>
           
           <p className="text-xl md:text-2xl mb-12 text-daoship-text-gray max-w-2xl mx-auto">
-            Join hundreds of communities already building their DAOs on Algorand with our platform.
+            Join hundreds of communities already building their DAOs on Avalanche with our platform.
           </p>
           
           <div className="flex flex-wrap justify-center gap-6">

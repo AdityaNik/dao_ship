@@ -58,7 +58,7 @@ const HeroSection = () => {
             <div className="inline-block bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6 border border-white/20">
               <span className="text-sm font-medium flex items-center">
                 <span className="h-2 w-2 rounded-full bg-daoship-mint mr-2 animate-pulse"></span>
-                Powered by Algorand
+                Powered by Avalanche
               </span>
             </div>
             
@@ -67,7 +67,7 @@ const HeroSection = () => {
             </h1>
             
             <p className="text-xl md:text-2xl mb-8 text-daoship-text-gray max-w-2xl opacity-80">
-              Create, deploy and manage DAOs on Algorand in minutes. Join the decentralized governance revolution without writing a single line of code.
+              Create, deploy and manage DAOs on Avalanche in minutes. Join the decentralized governance revolution without writing a single line of code.
             </p>
             
             <div className="flex flex-wrap gap-4">
@@ -122,7 +122,7 @@ const HeroSection = () => {
               </h2>
               
               <p className="text-daoship-text-gray mb-8">
-                Leverage the power of Algorand's fast, secure, and sustainable blockchain with our intuitive tools.
+                Leverage the power of Avalanche's fast, secure, and sustainable blockchain with our intuitive tools.
               </p>
               
               <div className="space-y-4 mb-8">

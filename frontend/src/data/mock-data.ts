@@ -32,7 +32,7 @@ export const mockDAOs: DAO[] = [
   {
     id: "dao-1",
     name: "AlgoVentures",
-    description: "A DAO focused on investing in promising Algorand projects and supporting the ecosystem.",
+    description: "A DAO focused on investing in promising Avalanche projects and supporting the ecosystem.",
     tokenName: "AlgoVentures",
     tokenSymbol: "ALVEN",
     tokenSupply: 1000000,
@@ -45,7 +45,7 @@ export const mockDAOs: DAO[] = [
   {
     id: "dao-2",
     name: "DeFiGuild",
-    description: "Focused on DeFi governance and protocol improvements on Algorand.",
+    description: "Focused on DeFi governance and protocol improvements on Avalanche.",
     tokenName: "DeFi Guild",
     tokenSymbol: "DFG",
     tokenSupply: 500000,
@@ -71,7 +71,7 @@ export const mockDAOs: DAO[] = [
   {
     id: "dao-4",
     name: "DevCollective",
-    description: "Supporting open-source development and developer education in the Algorand ecosystem.",
+    description: "Supporting open-source development and developer education in the Avalanche ecosystem.",
     tokenName: "Dev Collective",
     tokenSymbol: "DEVC",
     tokenSupply: 750000,
@@ -97,7 +97,7 @@ export const mockDAOs: DAO[] = [
   {
     id: "dao-6",
     name: "GamersDAO",
-    description: "Decentralized gaming guild focused on GameFi projects and esports tournaments on Algorand.",
+    description: "Decentralized gaming guild focused on GameFi projects and esports tournaments on Avalanche.",
     tokenName: "Gamers DAO",
     tokenSymbol: "GAME",
     tokenSupply: 3000000,
@@ -140,7 +140,7 @@ export const mockProposals: Proposal[] = [
     id: "prop-2",
     daoId: "dao-1",
     title: "Community Grants Program",
-    description: "Launch a grants program for Algorand developers with 50,000 ALVEN tokens allocated over 6 months.",
+    description: "Launch a grants program for Avalanche developers with 50,000 ALVEN tokens allocated over 6 months.",
     author: "0xabcd...ef01",
     createdAt: "2024-04-18T15:30:00Z",
     endTime: "2024-04-25T15:30:00Z",

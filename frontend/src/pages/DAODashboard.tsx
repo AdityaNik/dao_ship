@@ -135,7 +135,7 @@ interface DAO {
   updatedAt: string;
 }
 
-const GITHUB_TOKEN = "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"; // REPLACE WITH YOUR ACTUAL TOKEN OR SECURELY FETCH
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN; // REPLACE WITH YOUR ACTUAL TOKEN OR SECURELY FETCH
 
 const DAODashboard = () => {
   const { id } = useParams<{ id: string }>();

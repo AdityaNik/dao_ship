@@ -10,7 +10,7 @@ const Footer = () => {
           <div>
             <Link to="/" className="text-2xl font-bold text-white mb-4 block gradient-text">DAOShip</Link>
             <p className="text-daoship-text-gray">
-              Create, deploy, and manage DAOs on the Algorand blockchain with ease.
+              Create, deploy, and manage DAOs on the Avalanche blockchain with ease.
             </p>
           </div>
           
