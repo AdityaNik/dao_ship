@@ -333,16 +333,26 @@ const DAODashboard = () => {
   // Main function to fetch DAO data from your backend API
   const fetchDAOData = useCallback(async () => {
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
       const [daoData, proposalsData, invitationsData] = await Promise.all([
         getDAO(id!),
         getDAOProposals(id),
-        fetch(`${import.meta.env.VITE_API_URL}/api/dao/${id}/invitations`)
+        fetch(`${apiUrl}/dao/${id}/invitations`)
           .then((res) => res.json())
           .catch(() => []),
       ]);
       console.log("daoData fetched:", daoData);
       console.log("proposalsData fetched:", proposalsData);
       console.log("invitationsData fetched:", invitationsData);
+      console.log("DAO members:", daoData?.members);
+      console.log(
+        "Accepted invitations:",
+        invitationsData?.filter((inv) => inv.status === "accepted"),
+      );
+      console.log(
+        "Pending invitations:",
+        invitationsData?.filter((inv) => inv.status === "pending"),
+      );
       setDao(daoData);
       setProposals(proposalsData);
       setDaoInvitations(invitationsData);
@@ -1017,12 +1027,15 @@ const DAODashboard = () => {
                       </div>
                     </div>
 
-                    {/* All Members */}
+                    {/* Accepted Members (from DAO members + accepted invitations) */}
                     <h3 className="text-xl font-semibold text-white mb-4 mt-6 border-b border-white/10 pb-2">
-                      All Members ({dao.members.length})
+                      Accepted Members (
+                      {dao.members.length + daoInvitations.filter((inv) => inv.status === "accepted").length})
                     </h3>
-                    {dao.members.length > 0 ? (
-                      <div className="grid grid-cols-1 divide-y divide-white/10">
+
+                    {/* Show DAO members first */}
+                    {dao.members.length > 0 && (
+                      <div className="grid grid-cols-1 divide-y divide-white/10 mb-4">
                         {dao.members.map((member, index) => (
                           <motion.div
                             key={member._id || member.walletAddress || index}
@@ -1058,26 +1071,28 @@ const DAODashboard = () => {
                                 </div>
                               </div>
                               <div className="flex items-center">
-                                <div className="px-3 py-1 bg-white/10 rounded-full text-sm">1 Voting Power</div>
+                                <div className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
+                                  Member
+                                </div>
                               </div>
                             </div>
                           </motion.div>
                         ))}
                       </div>
-                    ) : (
-                      <p className="text-daoship-text-gray text-center py-4">
-                        No members in this DAO yet (excluding creator/manager).
-                      </p>
                     )}
 
-                    {/* Pending Invitations */}
-                    {daoInvitations.length > 0 && (
-                      <>
-                        <h3 className="text-xl font-semibold text-white mb-4 mt-6 border-b border-white/10 pb-2">
-                          Invitations ({daoInvitations.filter((inv) => inv.status === "pending").length} pending)
-                        </h3>
-                        <div className="grid grid-cols-1 divide-y divide-white/10">
-                          {daoInvitations.map((invitation, index) => (
+                    {/* Show accepted invitations (that are not already in DAO members) */}
+                    {daoInvitations.filter((inv) => inv.status === "accepted").length > 0 && (
+                      <div className="grid grid-cols-1 divide-y divide-white/10">
+                        {daoInvitations
+                          .filter((inv) => inv.status === "accepted")
+                          .filter(
+                            (inv) =>
+                              !dao.members.some(
+                                (member) => member.username?.toLowerCase() === inv.githubUsername.toLowerCase(),
+                              ),
+                          )
+                          .map((invitation, index) => (
                             <motion.div
                               key={invitation._id || index}
                               variants={itemVariants}
@@ -1086,7 +1101,7 @@ const DAODashboard = () => {
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center">
-                                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center overflow-hidden">
+                                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-500 to-lime-600 flex items-center justify-center overflow-hidden">
                                     <span className="text-white font-medium">
                                       {invitation.githubUsername.charAt(0).toUpperCase()}
                                     </span>
@@ -1094,26 +1109,111 @@ const DAODashboard = () => {
                                   <div className="ml-3">
                                     <h4 className="text-white font-medium">{invitation.githubUsername}</h4>
                                     <p className="text-daoship-text-gray text-sm">
-                                      Invited {new Date(invitation.invitedAt).toLocaleDateString()}
+                                      Accepted{" "}
+                                      {new Date(invitation.respondedAt || invitation.invitedAt).toLocaleDateString()}
                                     </p>
                                   </div>
                                 </div>
                                 <div className="flex items-center">
-                                  <div
-                                    className={`px-3 py-1 rounded-full text-sm ${
-                                      invitation.status === "pending"
-                                        ? "bg-yellow-500/20 text-yellow-400"
-                                        : invitation.status === "accepted"
-                                          ? "bg-green-500/20 text-green-400"
-                                          : "bg-red-500/20 text-red-400"
-                                    }`}
-                                  >
-                                    {invitation.status.charAt(0).toUpperCase() + invitation.status.slice(1)}
+                                  <div className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
+                                    Accepted
                                   </div>
                                 </div>
                               </div>
                             </motion.div>
                           ))}
+                      </div>
+                    )}
+
+                    {/* Show message if no accepted members */}
+                    {dao.members.length === 0 &&
+                      daoInvitations.filter((inv) => inv.status === "accepted").length === 0 && (
+                        <p className="text-daoship-text-gray text-center py-4">
+                          No accepted members yet (excluding creator/manager).
+                        </p>
+                      )}
+
+                    {/* Pending Invitations */}
+                    {daoInvitations.filter((inv) => inv.status === "pending").length > 0 && (
+                      <>
+                        <h3 className="text-xl font-semibold text-white mb-4 mt-6 border-b border-white/10 pb-2">
+                          Pending Invitations ({daoInvitations.filter((inv) => inv.status === "pending").length})
+                        </h3>
+                        <div className="grid grid-cols-1 divide-y divide-white/10">
+                          {daoInvitations
+                            .filter((inv) => inv.status === "pending")
+                            .map((invitation, index) => (
+                              <motion.div
+                                key={invitation._id || index}
+                                variants={itemVariants}
+                                custom={index}
+                                className="py-4 first:pt-0 last:pb-0"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center">
+                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center overflow-hidden">
+                                      <span className="text-white font-medium">
+                                        {invitation.githubUsername.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <div className="ml-3">
+                                      <h4 className="text-white font-medium">{invitation.githubUsername}</h4>
+                                      <p className="text-daoship-text-gray text-sm">
+                                        Invited {new Date(invitation.invitedAt).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <div className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm">
+                                      Pending
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ))}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Declined Invitations */}
+                    {daoInvitations.filter((inv) => inv.status === "declined").length > 0 && (
+                      <>
+                        <h3 className="text-xl font-semibold text-white mb-4 mt-6 border-b border-white/10 pb-2">
+                          Declined Invitations ({daoInvitations.filter((inv) => inv.status === "declined").length})
+                        </h3>
+                        <div className="grid grid-cols-1 divide-y divide-white/10">
+                          {daoInvitations
+                            .filter((inv) => inv.status === "declined")
+                            .map((invitation, index) => (
+                              <motion.div
+                                key={invitation._id || index}
+                                variants={itemVariants}
+                                custom={index}
+                                className="py-4 first:pt-0 last:pb-0"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center">
+                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center overflow-hidden">
+                                      <span className="text-white font-medium">
+                                        {invitation.githubUsername.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <div className="ml-3">
+                                      <h4 className="text-white font-medium">{invitation.githubUsername}</h4>
+                                      <p className="text-daoship-text-gray text-sm">
+                                        Declined{" "}
+                                        {new Date(invitation.respondedAt || invitation.invitedAt).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <div className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm">
+                                      Declined
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ))}
                         </div>
                       </>
                     )}

@@ -1,15 +1,15 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Mail } from "lucide-react";
+import { useAccount } from "wagmi";
 import { useGitHubAuth } from "@/hooks/useGitHubAuth";
 import { useInvitations } from "@/hooks/useInvitations";
-import { useWallet } from "@/hooks/use-wallet";
 import InvitationCard from "@/components/InvitationCard";
 
 const InvitationsPage = () => {
   const navigate = useNavigate();
   const { user, githubUsername, loading: authLoading } = useGitHubAuth();
-  const { walletAddress } = useWallet();
+  const { address: walletAddress, isConnected } = useAccount();
   const { invitations, loading, error, acceptInvitation, declineInvitation } = useInvitations(githubUsername);
 
   console.log("InvitationsPage Debug:", {
@@ -17,6 +17,7 @@ const InvitationsPage = () => {
     githubUsername,
     loading,
     walletAddress,
+    isConnected,
     invitations: invitations?.length,
   });
 
@@ -91,9 +92,15 @@ const InvitationsPage = () => {
                 <InvitationCard
                   key={invitation._id}
                   invitation={invitation}
-                  onAccept={(invitationId, walletAddr) => acceptInvitation(invitationId, walletAddr)}
+                  onAccept={(invitationId, walletAddr) => {
+                    console.log("Accepting invitation:", {
+                      invitationId,
+                      walletAddr,
+                      currentWalletAddress: walletAddress,
+                    });
+                    return acceptInvitation(invitationId, walletAddr);
+                  }}
                   onDecline={() => declineInvitation(invitation._id)}
-                  walletAddress={walletAddress}
                   isLoading={loading}
                 />
               ))}
