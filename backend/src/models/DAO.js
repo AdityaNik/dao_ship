@@ -23,6 +23,10 @@ const daoSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  daoId: {
+    type: String, // DAO ID from the smart contract
+    unique: true
+  },
   votePrice: {
     type: Number,
     required: true,
@@ -43,6 +47,11 @@ const daoSchema = new mongoose.Schema({
     min: 1
   },
   votingPeriod: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  stakingPeriod: {
     type: Number,
     required: true,
     min: 1

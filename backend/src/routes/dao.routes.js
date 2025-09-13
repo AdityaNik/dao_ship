@@ -43,12 +43,15 @@ router.post("/", async (req, res) => {
     const { 
       name, 
       description, 
+      creator,
       manager, // Changed from 'creator' to 'manager'
+      contractAddress,
       votePrice,
       tokenName,
       tokenSymbol,
       tokenSupply,
-      votingPeriod, 
+      votingPeriod,
+      stakingPeriod,
       quorum,
       minTokens,
       githubRepo,
@@ -58,41 +61,39 @@ router.post("/", async (req, res) => {
       contributionRewards,
       vestingPeriod,
       minContributionForVoting,
-      invitedCollaborators
+      invitedCollaborators,
+      members,
+      daoId
     } = req.body;
 
     console.log("Creating DAO with parameters:", {
       name,
       description,
+      creator,
       manager,
-      votePrice});
-    // Deploy DAO contract using AlgoKit
-    const contractAddress = await deployDAOContract({
-      name,
-      votingPeriod,
-      quorum,
-      // You might want to pass additional contract parameters here
+      contractAddress,
       votePrice,
-      tokenName,
-      tokenSymbol,
-      tokenSupply,
-      minTokens
+      daoId
     });
-    // const contractAddress = "dummy-algo-address";
+
+    // Use the contract address from the frontend (already deployed)
+    // No need to deploy a new contract since it's already deployed on Avalanche
+    const finalContractAddress = contractAddress || "0x0000000000000000000000000000000000000000";
 
     console.log("Received DAO create request with:", req.body);
 
     const dao = new DAO({
       name,
       description,
-      creator: manager, // Map manager to creator if your DAO model uses 'creator'
+      creator: creator || manager, // Use creator if provided, otherwise use manager
       manager, // Add manager field if your model supports it
-      contractAddress,
+      contractAddress: finalContractAddress,
       votePrice,
       tokenName,
       tokenSymbol,
       tokenSupply,
       votingPeriod,
+      stakingPeriod, // Add staking period
       quorum,
       minTokens,
       githubRepo,
@@ -103,9 +104,8 @@ router.post("/", async (req, res) => {
       vestingPeriod,
       minContributionForVoting,
       invitedCollaborators: invitedCollaborators || [], // Handle array of collaborators
-      members: [manager], // Initialize with manager as first member
-      // Add invited collaborators to members if they should be auto-added
-      // members: [manager, ...(invitedCollaborators || [])],
+      members: members || [creator || manager], // Use provided members or default to creator/manager
+      daoId, // Add DAO ID from contract
     });
 
     await dao.save();

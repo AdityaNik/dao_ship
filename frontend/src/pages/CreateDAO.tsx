@@ -11,6 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Users, UserPlus, CheckCircle, RefreshCw } from "lucide-react";
 import axios from "axios"; // Make sure axios is installed
 import { useWallet } from "@/hooks/use-wallet";
+import { useCreateDAO } from "@/hooks/useDaoContract";
+import { parseEther, weiUnits } from "viem";
+import { useAccount } from "wagmi";
 
 const steps = [
   "Basic Information",
@@ -39,7 +42,6 @@ interface ValidationErrors {
 }
 
 const CreateDAO = () => {
-  const { isConnected, walletAddress, connect } = useWallet();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
@@ -49,6 +51,8 @@ const CreateDAO = () => {
   const [collaboratorsError, setCollaboratorsError] = useState(null);
   const [invitingCollaborators, setInvitingCollaborators] = useState([]);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const {address} = useAccount();
+  const { createDAOCall, daoAddress, daoId, isLoading, isSuccess, error } = useCreateDAO();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -56,7 +60,7 @@ const CreateDAO = () => {
     description: "",
     tokenName: "",
     tokenSymbol: "",
-    tokenSupply: 1000000,
+    tokenSupply: 1000000, // This will be 1,000,000e18 which is > 1000e18 required by contract
     votingPeriod: 10,
     stakingPeriod: 3,
     quorum: 50,
@@ -144,6 +148,9 @@ const CreateDAO = () => {
         }
         if (formData.tokenStrategy === "fixed" && formData.tokenSupply <= 0) {
           errors.tokenSupply = "Token supply must be greater than 0";
+        }
+        if (formData.tokenStrategy === "fixed" && formData.tokenSupply < 1000) {
+          errors.tokenSupply = "Token supply must be at least 1000 tokens (contract requirement)";
         }
         // Validate token allocation adds up to 100%
         if (formData.tokenStrategy === "fixed") {
@@ -380,17 +387,6 @@ const CreateDAO = () => {
     }
   };
 
-  // Create a new DAO using the API
-  const createDAO = async (daoData) => {
-    try {
-      const response = await axios.post(`${API_URL}/dao`, daoData);
-      return response.data;
-    } catch (error) {
-      console.error("API Error:", error);
-      throw error;
-    }
-  };
-
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -409,7 +405,7 @@ const CreateDAO = () => {
     }
 
     // Only show wallet connection message if not connected
-    if (!isConnected) {
+    if (!address) {
       toast({
         title: "Wallet Not Connected",
         description: "Please connect your wallet using the button in the navigation bar",
@@ -425,11 +421,9 @@ const CreateDAO = () => {
       const daoData = {
         name: formData.name,
         description: formData.description,
-        creator: walletAddress, // Assign the creator's wallet address
-        manager: walletAddress, // Manager defaults to creator for now
-        // You'll need to generate contractAddress on the backend or during deployment
-        // For now, let's set a placeholder or omit if backend handles it
-        contractAddress: "0xPlaceholderContractAddress", // Replace with actual contract address
+        creator: address, // Assign the creator's wallet address
+        manager: address, // Manager defaults to creator for now
+        contractAddress: "", // Will be set after successful contract deployment
         votePrice: formData.votePrice,
         tokenName: formData.tokenName,
         tokenSymbol: formData.tokenSymbol,
@@ -446,21 +440,13 @@ const CreateDAO = () => {
         vestingPeriod: formData.vestingPeriod,
         minContributionForVoting: formData.minContributionForVoting,
         invitedCollaborators: formData.invitedCollaborators, // GitHub IDs/usernames
-        members: [walletAddress], // Creator is the first member by default
+        members: [address], // Creator is the first member by default
       };
 
-      const response = await axios.post(`${API_URL}/dao`, daoData);
-
-      if (response.status !== 201 && response.status !== 200) {
-        throw new Error(response.data.message || "Failed to create DAO");
-      }
-
-      const dao = response.data;
-      toast({
-        title: "Success",
-        description: "DAO created successfully!",
-      });
-      navigate(`/dao/${dao._id}`);
+      // Trigger smart contract deployment
+      console.log("Before...");
+      await createDAOCall(daoData.name, daoData.githubRepo, daoData.tokenName, daoData.tokenSymbol, parseEther(daoData.tokenSupply.toString()));
+      console.log("after...");
     } catch (error) {
       console.error("Error creating DAO:", error);
       toast({
@@ -468,10 +454,133 @@ const CreateDAO = () => {
         description: error.response?.data?.message || error.message || "Failed to create DAO. Please try again.",
         variant: "destructive",
       });
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle successful contract deployment
+  const handleContractSuccess = async (daoId: string, daoAddress: string) => {
+    try {
+      // Prepare the data with the actual contract address
+
+      console.log("before database: " + daoId + " " + daoAddress);
+
+      const daoData = {
+        name: formData.name,
+        description: formData.description,
+        creator: address,
+        manager: address,
+        contractAddress: daoAddress, // Use the actual deployed contract address
+        votePrice: formData.votePrice,
+        tokenName: formData.tokenName,
+        tokenSymbol: formData.tokenSymbol,
+        tokenSupply: formData.tokenSupply,
+        votingPeriod: formData.votingPeriod,
+        stakingPeriod: formData.stakingPeriod,
+        quorum: formData.quorum,
+        minTokens: formData.minTokens,
+        githubRepo: formData.githubRepo,
+        tokenStrategy: formData.tokenStrategy,
+        initialDistribution: formData.initialDistribution,
+        tokenAllocation: formData.tokenAllocation,
+        contributionRewards: formData.contributionRewards,
+        vestingPeriod: formData.vestingPeriod,
+        minContributionForVoting: formData.minContributionForVoting,
+        invitedCollaborators: formData.invitedCollaborators,
+        members: [address],
+        daoId: daoId, // Include the DAO ID from the contract
+      };
+
+      console.log('Preparing to store DAO data:', daoData);
+      console.log('API URL:', API_URL);
+
+      // Store in database only after successful contract deployment
+      console.log('hello 1 - Starting API call');
+      const response = await axios.post(`${API_URL}/dao`, daoData, {
+        timeout: 30000, // 30 second timeout
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      console.log('hello 2 - API call completed, status:', response.status);
+      console.log('Response data:', response.data);
+
+      if (response.status !== 201 && response.status !== 200) {
+        throw new Error(response.data.message || "Failed to store DAO data");
+      }
+
+      const dao = response.data;
+      toast({
+        title: "Success",
+        description: "DAO created and deployed successfully!",
+      });
+      console.log('hello 3 - Navigating to DAO page');
+      navigate(`/dao/${dao._id}`);
+    } catch (error) {
+      console.error("Error storing DAO data:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: error.config
+      });
+      
+      let errorMessage = "DAO contract deployed but failed to store data. Please contact support.";
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = "Request timed out. Please check your connection and try again.";
+      } else if (error.response?.status === 500) {
+        errorMessage = "Server error. Please try again later.";
+      } else if (error.response?.status === 400) {
+        errorMessage = "Invalid data. Please check your input and try again.";
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Handle contract deployment failure
+  const handleContractError = (error: any) => {
+    console.error("Contract deployment failed:", error);
+    
+    let errorMessage = "Failed to deploy DAO contract. Please try again.";
+    
+    // Check for specific error messages
+    if (error?.message?.includes("not enough balance")) {
+      errorMessage = "Token supply must be at least 1000 tokens. Please increase the token supply and try again.";
+    } else if (error?.message?.includes("repoExists")) {
+      errorMessage = "A DAO with this GitHub repository already exists. Please use a different repository.";
+    }
+    
+    toast({
+      title: "Deployment Failed",
+      description: errorMessage,
+      variant: "destructive",
+    });
+    setIsSubmitting(false);
+  };
+
+  // Monitor contract deployment status
+  useEffect(() => {
+    console.log('hey there')
+    console.log(isSuccess + " " + daoId + " " + daoAddress)
+    if (isSuccess && daoId && daoAddress) {
+      console.log("inside")
+      handleContractSuccess(daoId, daoAddress);
+    } else if (error) {
+      console.log("from error")
+      handleContractError(error);
+    }
+    console.log("after ")
+  }, [isSuccess, daoId, daoAddress, error]);
+
+  // The hook now automatically handles DAO ID detection, so no manual handling needed
 
   // Go to next step with validation
   const nextStep = () => {
@@ -876,65 +985,6 @@ const CreateDAO = () => {
                 />
               </div>
             </div>
-
-            {/* <div className="p-4 glass-card rounded-lg">
-              <h4 className="text-lg font-semibold text-white mb-4">Ongoing Contribution Rewards</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <GlassmorphicInput
-                  label="New PR Reward"
-                  name="contributionRewards.newPR"
-                  type="number"
-                  value={formData.contributionRewards.newPR}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    contributionRewards: {
-                      ...formData.contributionRewards,
-                      newPR: parseInt(e.target.value) || 0
-                    }
-                  })}
-                />
-                <GlassmorphicInput
-                  label="Accepted PR Reward"
-                  name="contributionRewards.acceptedPR"
-                  type="number"
-                  value={formData.contributionRewards.acceptedPR}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    contributionRewards: {
-                      ...formData.contributionRewards,
-                      acceptedPR: parseInt(e.target.value) || 0
-                    }
-                  })}
-                />
-                <GlassmorphicInput
-                  label="Issue Creation Reward"
-                  name="contributionRewards.issueCreation"
-                  type="number"
-                  value={formData.contributionRewards.issueCreation}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    contributionRewards: {
-                      ...formData.contributionRewards,
-                      issueCreation: parseInt(e.target.value) || 0
-                    }
-                  })}
-                />
-                <GlassmorphicInput
-                  label="Code Review Reward"
-                  name="contributionRewards.codeReview"
-                  type="number"
-                  value={formData.contributionRewards.codeReview}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    contributionRewards: {
-                      ...formData.contributionRewards,
-                      codeReview: parseInt(e.target.value) || 0
-                    }
-                  })}
-                />
-              </div>
-            </div> */}
-
             <div className="p-4 glass-card rounded-lg">
               <h4 className="text-lg font-semibold text-white mb-4">Voting Parameters</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1248,18 +1298,16 @@ const CreateDAO = () => {
                   className="flex flex-col items-center relative z-10"
                 >
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      index <= currentStep
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${index <= currentStep
                         ? "bg-gradient-primary"
                         : "bg-white/10"
-                    }`}
+                      }`}
                   >
                     <span className="text-white font-medium">{index + 1}</span>
                   </div>
                   <p
-                    className={`text-xs mt-2 ${
-                      index <= currentStep ? "text-white" : "text-white/50"
-                    }`}
+                    className={`text-xs mt-2 ${index <= currentStep ? "text-white" : "text-white/50"
+                      }`}
                   >
                     {step}
                   </p>
@@ -1300,11 +1348,11 @@ const CreateDAO = () => {
                 ) : (
                   <GradientButton
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isLoading}
                     variant="success"
                     glowEffect
                   >
-                    {isSubmitting ? "Creating DAO..." : "Create DAO"}
+                    {isLoading ? "Deploying Contract..." : isSubmitting ? "Storing DAO Data..." : "Create DAO"}
                   </GradientButton>
                 )}
               </div>
