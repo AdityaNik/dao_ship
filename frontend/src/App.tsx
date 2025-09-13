@@ -10,30 +10,34 @@ import DAODashboard from "./pages/DAODashboard";
 import CreateProposal from "./pages/CreateProposal";
 import ProposalView from "./pages/ProposalView";
 import NotFound from "./pages/NotFound";
+import { WagmiProvider } from "wagmi";
+import { config } from "./lib/config";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/explore" element={<Explore />} />
-          <Route path="/create-dao" element={<CreateDAO />} />
-          <Route path="/dao/:id" element={<DAODashboard />} />
-          <Route path="/dao/:id/create-proposal" element={<CreateProposal />} />
-          <Route
-            path="/dao/:daoId/proposal/:proposalId"
-            element={<ProposalView />}
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <WagmiProvider config={config}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/create-dao" element={<CreateDAO />} />
+            <Route path="/dao/:id" element={<DAODashboard />} />
+            <Route path="/dao/:id/create-proposal" element={<CreateProposal />} />
+            <Route
+              path="/dao/:daoId/proposal/:proposalId"
+              element={<ProposalView />}
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </WagmiProvider>
 );
 
 export default App;
