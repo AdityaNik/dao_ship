@@ -7,7 +7,7 @@ import { Connector, useConnect } from "wagmi";
 interface WalletConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConnect: (walletType: string) => void;
+  onConnect: (walletType: Connector) => void;
 }
 
 const WalletConnectModal = ({
@@ -18,23 +18,6 @@ const WalletConnectModal = ({
   const [connecting, setConnecting] = useState<string | null>(null);
   const { toast } = useToast();
   const { connectors, connect } = useConnect();
-
-  const handleConnect = async (walletType: string) => {
-    setConnecting(walletType);
-
-    try {
-      await onConnect(walletType);
-    } catch (error) {
-      console.error("Failed to connect wallet:", error);
-      toast({
-        title: "Connection Failed",
-        description: "Failed to connect wallet. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setConnecting(null);
-    }
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -72,7 +55,9 @@ const WalletConnectModal = ({
                 name={connector.name}
                 icon={connector.icon}
                 connector={connector}
-                onClick={() => connect({ connector })}
+                onClick={() => {
+                  onConnect(connector)
+                }}
                 isLoading={connecting === connector.name}
               />
             ))}
@@ -115,7 +100,7 @@ const WalletOption = ({
 }: WalletOptionProps) => {
   const [ready, setReady] = React.useState(false)
   React.useEffect(() => {
-    ;(async () => {
+    ; (async () => {
       const provider = await connector.getProvider()
       setReady(!!provider)
     })()
@@ -132,50 +117,50 @@ const WalletOption = ({
 
   return (
     <button
-  onClick={onClick}
-  disabled={isLoading || !ready}
-  className="w-full p-3 rounded-xl bg-gradient-to-r from-white/5 to-white/10 hover:from-white/10 hover:to-white/15 
+      onClick={onClick}
+      disabled={isLoading || !ready}
+      className="w-full p-3 rounded-xl bg-gradient-to-r from-white/5 to-white/10 hover:from-white/10 hover:to-white/15 
              border border-white/20 hover:border-white/40 transition-all duration-300 flex items-center 
              justify-between group disabled:opacity-50 disabled:cursor-not-allowed transform 
              hover:scale-[1.01] hover:shadow-md hover:shadow-blue-500/15 relative overflow-hidden"
->
-  {/* Background gradient effect */}
-  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 
+    >
+      {/* Background gradient effect */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 
                   opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-  
-  <div className="flex items-center gap-3 relative z-10">
-    <div className="p-3 rounded-lg bg-gradient-to-br from-white/15 to-white/5 
+
+      <div className="flex items-center gap-3 relative z-10">
+        <div className="p-3 rounded-lg bg-gradient-to-br from-white/15 to-white/5 
                     border border-white/30 group-hover:border-white/50 transition-all 
                     duration-300 group-hover:shadow-md group-hover:shadow-blue-500/20">
-      {getWalletIcon(connector.name)}
-    </div>
-    <div className="text-left">
-      <p className="font-semibold text-white group-hover:text-blue-100 transition-colors duration-200 text-base">
-        {name}
-      </p>
-      <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-        <div className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`} />
-        {ready ? "Ready to connect" : "Checking availability..."}
-      </p>
-    </div>
-  </div>
-  
-  <div className="flex items-center relative z-10">
-    {isLoading ? (
-      <div className="flex items-center gap-2 bg-blue-500/20 px-3 py-1.5 rounded-full">
-        <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
-        <span className="text-xs text-blue-400 font-medium">Connecting...</span>
+          {getWalletIcon(connector.name)}
+        </div>
+        <div className="text-left">
+          <p className="font-semibold text-white group-hover:text-blue-100 transition-colors duration-200 text-base">
+            {name}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+            <div className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`} />
+            {ready ? "Ready to connect" : "Checking availability..."}
+          </p>
+        </div>
       </div>
-    ) : (
-      <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 
+
+      <div className="flex items-center relative z-10">
+        {isLoading ? (
+          <div className="flex items-center gap-2 bg-blue-500/20 px-3 py-1.5 rounded-full">
+            <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
+            <span className="text-xs text-blue-400 font-medium">Connecting...</span>
+          </div>
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 
                       text-blue-400 flex items-center justify-center opacity-0 group-hover:opacity-100 
                       transition-all duration-300 border border-blue-400/40 group-hover:border-blue-400/60 
                       group-hover:shadow-md group-hover:shadow-blue-500/25">
-        <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4" />
+          </div>
+        )}
       </div>
-    )}
-  </div>
-</button>
+    </button>
   );
 };
 

@@ -24,6 +24,7 @@ import {
   getWalletAddress,
 } from "@/lib/wallet";
 import { formatWalletAddress } from "@/lib/utils";
+import { Connector, useAccount, useConnect } from "wagmi";
 
 const Navigation = () => {
   const { toast } = useToast();
@@ -42,6 +43,8 @@ const Navigation = () => {
 
   // Use the GitHub auth hook
   const { user, connectGitHub, disconnectGitHub, getUserData, loading: authLoading } = useGitHubAuth();
+  const {connect } = useConnect()
+  const {address} = useAccount();
 
   // Determine if GitHub is connected
   const isGitHubConnected = !!user;
@@ -207,22 +210,22 @@ const Navigation = () => {
   };
 
   // Update wallet connection handler
-  const handleWalletConnect = async (walletType: string) => {
+  const handleWalletConnect = async (connector: Connector) => {
     setIsModalOpen(false);
 
     try {
       toast({
         title: "Connecting Wallet",
-        description: `Connecting to ${walletType}...`,
+        description: `Connecting to ${connector.name}...`,
       });
 
-      const address = await connectWallet();
+      connect({connector})
       setWalletAddress(address);
       setIsConnected(true);
 
       toast({
         title: "Wallet Connected",
-        description: `Successfully connected to ${walletType}`,
+        description: `Successfully connected to ${connector.name}`,
       });
     } catch (error) {
       console.error("Failed to connect wallet:", error);
