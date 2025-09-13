@@ -104,7 +104,7 @@ interface DAO {
   quorum: number;
   minTokens: number;
   githubRepo?: string;
-  tokenStrategy: 'fixed' | 'dynamic' | 'hybrid';
+  tokenStrategy: "fixed" | "dynamic" | "hybrid";
   initialDistribution: {
     commits: number;
     pullRequests: number;
@@ -148,6 +148,7 @@ const DAODashboard = () => {
   const [githubCollaborators, setGithubCollaborators] = useState<GitHubCollaborator[]>([]);
   const [isFetchingGithubData, setIsFetchingGithubData] = useState(false);
   const [githubDataError, setGithubDataError] = useState<string | null>(null);
+  const [daoInvitations, setDaoInvitations] = useState<any[]>([]);
 
   const [tabHovered, setTabHovered] = useState("");
   const { toast } = useToast();
@@ -163,51 +164,63 @@ const DAODashboard = () => {
       if (match) {
         return {
           owner: match[1],
-          repo: match[2].replace('.git', '')
+          repo: match[2].replace(".git", ""),
         };
       }
       return null;
     } catch (error) {
-      console.error('Error parsing GitHub URL:', error);
+      console.error("Error parsing GitHub URL:", error);
       return null;
     }
   }, []);
 
   // Function to fetch GitHub contributions (simplified for commits)
-  const fetchGitHubUserContributions = useCallback(async (owner: string, repo: string, username: string) => {
-    try {
-      const headers: HeadersInit = { 'Accept': 'application/vnd.github.v3+json' };
-      if (GITHUB_TOKEN) {
-        headers['Authorization'] = `token ${GITHUB_TOKEN}`;
-      } else {
-        console.warn("GitHub Token is not set. API requests might be rate-limited or fail for private repos.");
+  const fetchGitHubUserContributions = useCallback(
+    async (owner: string, repo: string, username: string) => {
+      try {
+        const headers: HeadersInit = { Accept: "application/vnd.github.v3+json" };
+        if (GITHUB_TOKEN) {
+          headers["Authorization"] = `token ${GITHUB_TOKEN}`;
+        } else {
+          console.warn("GitHub Token is not set. API requests might be rate-limited or fail for private repos.");
+        }
+
+        const commitsResponse = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/commits?author=${username}`,
+          { headers },
+        );
+        const commitsData = await commitsResponse.json();
+        const numCommits = Array.isArray(commitsData) ? commitsData.length : 0;
+
+        const prsResponse = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/pulls?state=all&creator=${username}`,
+          { headers },
+        );
+        const prsData = await prsResponse.json();
+        const numPRs = Array.isArray(prsData) ? prsData.length : 0;
+
+        const issuesResponse = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/issues?state=all&creator=${username}`,
+          { headers },
+        );
+        const issuesData = await issuesResponse.json();
+        const numIssues = Array.isArray(issuesData) ? issuesData.length : 0;
+
+        const numCodeReviews = 0; // Placeholder for code reviews
+
+        return {
+          commits: numCommits,
+          pullRequests: numPRs,
+          issues: numIssues,
+          codeReviews: numCodeReviews,
+        };
+      } catch (error) {
+        console.error(`Error fetching contributions for ${username}:`, error);
+        return { commits: 0, pullRequests: 0, issues: 0, codeReviews: 0 };
       }
-
-      const commitsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?author=${username}`, { headers });
-      const commitsData = await commitsResponse.json();
-      const numCommits = Array.isArray(commitsData) ? commitsData.length : 0;
-
-      const prsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?state=all&creator=${username}`, { headers });
-      const prsData = await prsResponse.json();
-      const numPRs = Array.isArray(prsData) ? prsData.length : 0;
-
-      const issuesResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=all&creator=${username}`, { headers });
-      const issuesData = await issuesResponse.json();
-      const numIssues = Array.isArray(issuesData) ? issuesData.length : 0;
-
-      const numCodeReviews = 0; // Placeholder for code reviews
-
-      return {
-        commits: numCommits,
-        pullRequests: numPRs,
-        issues: numIssues,
-        codeReviews: numCodeReviews,
-      };
-    } catch (error) {
-      console.error(`Error fetching contributions for ${username}:`, error);
-      return { commits: 0, pullRequests: 0, issues: 0, codeReviews: 0 };
-    }
-  }, [GITHUB_TOKEN]);
+    },
+    [GITHUB_TOKEN],
+  );
 
   // Main function to fetch all GitHub data for the DAO
   const fetchAllGitHubData = useCallback(async () => {
@@ -230,22 +243,30 @@ const DAODashboard = () => {
     setGithubDataError(null);
 
     try {
-      const headers: HeadersInit = { 'Accept': 'application/vnd.github.v3+json' };
+      const headers: HeadersInit = { Accept: "application/vnd.github.v3+json" };
       if (GITHUB_TOKEN) {
-        headers['Authorization'] = `token ${GITHUB_TOKEN}`;
+        headers["Authorization"] = `token ${GITHUB_TOKEN}`;
       } else {
         console.warn("GitHub Token is not set. API requests might be rate-limited or fail for private repos.");
       }
 
-      const collabsResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/collaborators`, { headers });
+      const collabsResponse = await fetch(
+        `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/collaborators`,
+        { headers },
+      );
       if (!collabsResponse.ok) {
         throw new Error(`Failed to fetch collaborators: ${collabsResponse.status} ${collabsResponse.statusText}`);
       }
       const collabsData: GitHubCollaborator[] = await collabsResponse.json();
 
-      const contributorsResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contributors`, { headers });
+      const contributorsResponse = await fetch(
+        `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contributors`,
+        { headers },
+      );
       if (!contributorsResponse.ok) {
-        throw new Error(`Failed to fetch contributors: ${contributorsResponse.status} ${contributorsResponse.statusText}`);
+        throw new Error(
+          `Failed to fetch contributors: ${contributorsResponse.status} ${contributorsResponse.statusText}`,
+        );
       }
       const contributorsData: GitHubContributor[] = await contributorsResponse.json();
 
@@ -269,10 +290,10 @@ const DAODashboard = () => {
       for (const user of Object.values(combinedUsers)) {
         const tempContributions = await fetchGitHubUserContributions(repoInfo.owner, repoInfo.repo, user.login);
         totalPointsAllContributors +=
-            (tempContributions.commits * (dao?.contributionRewards.newPR || 0)) +
-            (tempContributions.pullRequests * (dao?.contributionRewards.acceptedPR || 0)) +
-            (tempContributions.issues * (dao?.contributionRewards.issueCreation || 0)) +
-            (tempContributions.codeReviews * (dao?.contributionRewards.codeReview || 0));
+          tempContributions.commits * (dao?.contributionRewards.newPR || 0) +
+          tempContributions.pullRequests * (dao?.contributionRewards.acceptedPR || 0) +
+          tempContributions.issues * (dao?.contributionRewards.issueCreation || 0) +
+          tempContributions.codeReviews * (dao?.contributionRewards.codeReview || 0);
       }
 
       const finalCollaboratorsWithContributions: GitHubCollaborator[] = await Promise.all(
@@ -280,25 +301,27 @@ const DAODashboard = () => {
           const contributions = await fetchGitHubUserContributions(repoInfo.owner, repoInfo.repo, user.login);
 
           const individualContributionPoints =
-            (contributions.commits * (dao?.contributionRewards.newPR || 0)) +
-            (contributions.pullRequests * (dao?.contributionRewards.acceptedPR || 0)) +
-            (contributions.issues * (dao?.contributionRewards.issueCreation || 0)) +
-            (contributions.codeReviews * (dao?.contributionRewards.codeReview || 0));
+            contributions.commits * (dao?.contributionRewards.newPR || 0) +
+            contributions.pullRequests * (dao?.contributionRewards.acceptedPR || 0) +
+            contributions.issues * (dao?.contributionRewards.issueCreation || 0) +
+            contributions.codeReviews * (dao?.contributionRewards.codeReview || 0);
 
           let allocatedTokens = 0;
-          if (dao?.tokenStrategy === 'fixed' && dao?.tokenSupply !== undefined && totalPointsAllContributors > 0) {
+          if (dao?.tokenStrategy === "fixed" && dao?.tokenSupply !== undefined && totalPointsAllContributors > 0) {
             const tokensForInitialDistribution = (dao.tokenAllocation.initialDistribution / 100) * dao.tokenSupply;
-            allocatedTokens = (individualContributionPoints / totalPointsAllContributors) * tokensForInitialDistribution;
-          } else if (dao?.tokenStrategy === 'dynamic') {
-             allocatedTokens = individualContributionPoints;
+            allocatedTokens =
+              (individualContributionPoints / totalPointsAllContributors) * tokensForInitialDistribution;
+          } else if (dao?.tokenStrategy === "dynamic") {
+            allocatedTokens = individualContributionPoints;
           }
 
           return { ...user, contributions, allocatedTokens };
-        })
+        }),
       );
 
-      setGithubCollaborators(finalCollaboratorsWithContributions.sort((a, b) => (b.allocatedTokens || 0) - (a.allocatedTokens || 0)));
-
+      setGithubCollaborators(
+        finalCollaboratorsWithContributions.sort((a, b) => (b.allocatedTokens || 0) - (a.allocatedTokens || 0)),
+      );
     } catch (error) {
       console.error("Error fetching GitHub data:", error);
       setGithubDataError(`Failed to fetch GitHub data: ${error.message || String(error)}`);
@@ -310,14 +333,19 @@ const DAODashboard = () => {
   // Main function to fetch DAO data from your backend API
   const fetchDAOData = useCallback(async () => {
     try {
-      const [daoData, proposalsData] = await Promise.all([
+      const [daoData, proposalsData, invitationsData] = await Promise.all([
         getDAO(id!),
         getDAOProposals(id),
+        fetch(`${import.meta.env.VITE_API_URL}/api/dao/${id}/invitations`)
+          .then((res) => res.json())
+          .catch(() => []),
       ]);
       console.log("daoData fetched:", daoData);
       console.log("proposalsData fetched:", proposalsData);
+      console.log("invitationsData fetched:", invitationsData);
       setDao(daoData);
       setProposals(proposalsData);
+      setDaoInvitations(invitationsData);
     } catch (error) {
       console.error("Error fetching DAO data:", error);
       toast({
@@ -331,17 +359,28 @@ const DAODashboard = () => {
   }, [id, toast]);
 
   // Handle navigation to view a specific proposal
-  const handleViewProposal = useCallback((proposalId: string) => {
-    navigate(`/dao/${id}/proposal/${proposalId}`);
-  }, [navigate, id]);
+  const handleViewProposal = useCallback(
+    (proposalId: string) => {
+      navigate(`/dao/${id}/proposal/${proposalId}`);
+    },
+    [navigate, id],
+  );
 
   // Handle navigation to create a new proposal
   const handleCreateProposal = useCallback(() => {
     navigate(`/dao/${id}/create-proposal`);
   }, [navigate, id]);
 
-  // --- END: Move all helper functions and callbacks here ---
+  // Helper function to get invitation status for a username
+  const getInvitationStatus = useCallback(
+    (username: string) => {
+      const invitation = daoInvitations.find((inv) => inv.githubUsername.toLowerCase() === username.toLowerCase());
+      return invitation ? invitation.status : null;
+    },
+    [daoInvitations],
+  );
 
+  // --- END: Move all helper functions and callbacks here ---
 
   // ... (useEffect hooks now come after functions they call)
 
@@ -358,7 +397,6 @@ const DAODashboard = () => {
       }
     }
   }, [activeTab, dao, fetchAllGitHubData, isFetchingGithubData, githubCollaborators.length, githubDataError]);
-
 
   // ... (rest of the component, including animation variants and render logic, remains the same)
   // Animation variants (no changes needed)
@@ -436,18 +474,10 @@ const DAODashboard = () => {
   if (!dao) {
     return (
       <div className="min-h-screen bg-gradient-background flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <GlassmorphicCard className="p-8 max-w-md text-center">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              DAO Not Found
-            </h2>
-            <p className="text-daoship-text-gray mb-6">
-              We couldn't find the DAO you're looking for.
-            </p>
+            <h2 className="text-2xl font-bold text-white mb-4">DAO Not Found</h2>
+            <p className="text-daoship-text-gray mb-6">We couldn't find the DAO you're looking for.</p>
             <Link to="/">
               <GradientButton>Return Home</GradientButton>
             </Link>
@@ -503,10 +533,7 @@ const DAODashboard = () => {
 
   const activeProposals = proposals.filter((p) => p.status === "active");
   const recentProposals = [...proposals]
-    .sort(
-      (a, b) =>
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-    )
+    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
     .slice(0, 5);
 
   const isDAOAdmin = walletAddress === (dao.creator as any)?.walletAddress || walletAddress === dao.manager;
@@ -526,9 +553,7 @@ const DAODashboard = () => {
           >
             <div>
               <div className="flex items-center">
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-                  {dao.name}
-                </h1>
+                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{dao.name}</h1>
                 <motion.div
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -538,9 +563,7 @@ const DAODashboard = () => {
                 </motion.div>
               </div>
               <p className="text-daoship-text-gray text-lg mb-1">
-                {dao.description.length > 120
-                  ? dao.description.substring(0, 120) + "..."
-                  : dao.description}
+                {dao.description.length > 120 ? dao.description.substring(0, 120) + "..." : dao.description}
               </p>
               <div className="flex items-center text-daoship-text-gray mt-2">
                 <Users className="w-4 h-4 mr-1" />
@@ -549,11 +572,7 @@ const DAODashboard = () => {
                 <span>Created {formatDate(dao.createdAt)}</span>
               </div>
             </div>
-            <motion.div
-              className="mt-4 md:mt-0"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
+            <motion.div className="mt-4 md:mt-0" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <GradientButton onClick={handleCreateProposal}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create Proposal
@@ -622,20 +641,11 @@ const DAODashboard = () => {
                         <div className="p-2 rounded-full bg-blue-500/20 mr-3">
                           <Activity className="w-5 h-5 text-blue-400" />
                         </div>
-                        <h3 className="text-lg font-medium text-white">
-                          Active Proposals
-                        </h3>
+                        <h3 className="text-lg font-medium text-white">Active Proposals</h3>
                       </div>
-                      <motion.div
-                        className="flex items-end justify-between"
-                        variants={statisticsVariants}
-                      >
-                        <span className="text-3xl font-bold text-white">
-                          {activeProposals.length}
-                        </span>
-                        <span className="text-daoship-text-gray">
-                          of {proposals.length} total
-                        </span>
+                      <motion.div className="flex items-end justify-between" variants={statisticsVariants}>
+                        <span className="text-3xl font-bold text-white">{activeProposals.length}</span>
+                        <span className="text-daoship-text-gray">of {proposals.length} total</span>
                       </motion.div>
                     </GlassmorphicCard>
                   </motion.div>
@@ -646,20 +656,11 @@ const DAODashboard = () => {
                         <div className="p-2 rounded-full bg-purple-500/20 mr-3">
                           <Users className="w-5 h-5 text-purple-400" />
                         </div>
-                        <h3 className="text-lg font-medium text-white">
-                          Members
-                        </h3>
+                        <h3 className="text-lg font-medium text-white">Members</h3>
                       </div>
-                      <motion.div
-                        className="flex items-end justify-between"
-                        variants={statisticsVariants}
-                      >
-                        <span className="text-3xl font-bold text-white">
-                          {dao.members.length}
-                        </span>
-                        <span className="text-daoship-text-gray">
-                          voting power
-                        </span>
+                      <motion.div className="flex items-end justify-between" variants={statisticsVariants}>
+                        <span className="text-3xl font-bold text-white">{dao.members.length}</span>
+                        <span className="text-daoship-text-gray">voting power</span>
                       </motion.div>
                     </GlassmorphicCard>
                   </motion.div>
@@ -670,36 +671,20 @@ const DAODashboard = () => {
                         <div className="p-2 rounded-full bg-green-500/20 mr-3">
                           <CheckCircle className="w-5 h-5 text-green-400" />
                         </div>
-                        <h3 className="text-lg font-medium text-white">
-                          Quorum
-                        </h3>
+                        <h3 className="text-lg font-medium text-white">Quorum</h3>
                       </div>
-                      <motion.div
-                        className="flex items-end justify-between"
-                        variants={statisticsVariants}
-                      >
-                        <span className="text-3xl font-bold text-white">
-                          {dao.quorum}%
-                        </span>
-                        <span className="text-daoship-text-gray">
-                          required votes
-                        </span>
+                      <motion.div className="flex items-end justify-between" variants={statisticsVariants}>
+                        <span className="text-3xl font-bold text-white">{dao.quorum}%</span>
+                        <span className="text-daoship-text-gray">required votes</span>
                       </motion.div>
                     </GlassmorphicCard>
                   </motion.div>
                 </motion.div>
 
                 {/* Active Proposals */}
-                <motion.div
-                  className="mb-10"
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                >
+                <motion.div className="mb-10" variants={containerVariants} initial="hidden" animate="visible">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-white">
-                      Active Proposals
-                    </h2>
+                    <h2 className="text-xl font-bold text-white">Active Proposals</h2>
                     <Link
                       to={`/dao/${id}/proposals`}
                       className="text-daoship-primary flex items-center hover:underline"
@@ -722,12 +707,8 @@ const DAODashboard = () => {
                           <GlassmorphicCard className="p-5">
                             <div className="flex flex-col md:flex-row md:items-center justify-between">
                               <div className="flex-1 mb-4 md:mb-0 md:mr-4">
-                                <h3 className="text-white font-medium text-lg mb-1">
-                                  {proposal.title}
-                                </h3>
-                                <p className="text-daoship-text-gray text-sm line-clamp-2">
-                                  {proposal.description}
-                                </p>
+                                <h3 className="text-white font-medium text-lg mb-1">{proposal.title}</h3>
+                                <p className="text-daoship-text-gray text-sm line-clamp-2">{proposal.description}</p>
                               </div>
                               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                                 <div className="flex items-center bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm">
@@ -749,29 +730,18 @@ const DAODashboard = () => {
                                 className="h-full bg-green-500 rounded-full"
                                 initial={{ width: 0 }}
                                 animate={{
-                                  width: `${getVotePercentage(
-                                    proposal.yesVotes,
-                                    proposal
-                                  )}%`,
+                                  width: `${getVotePercentage(proposal.yesVotes, proposal)}%`,
                                 }}
                                 transition={{ duration: 1, delay: 0.5 }}
                               />
                             </div>
                             <div className="flex justify-between mt-2 text-xs text-daoship-text-gray">
                               <span>
-                                {proposal.yesVotes} Yes (
-                                {getVotePercentage(
-                                  proposal.yesVotes,
-                                  proposal
-                                ).toFixed(1)}
+                                {proposal.yesVotes} Yes ({getVotePercentage(proposal.yesVotes, proposal).toFixed(1)}
                                 %)
                               </span>
                               <span>
-                                {proposal.noVotes} No (
-                                {getVotePercentage(
-                                  proposal.noVotes,
-                                  proposal
-                                ).toFixed(1)}
+                                {proposal.noVotes} No ({getVotePercentage(proposal.noVotes, proposal).toFixed(1)}
                                 %)
                               </span>
                               <span>{getTotalVotes(proposal)} total votes</span>
@@ -788,9 +758,7 @@ const DAODashboard = () => {
                         transition={{ duration: 0.5 }}
                       >
                         <FileText className="w-12 h-12 mx-auto text-daoship-text-gray mb-4" />
-                        <h3 className="text-xl font-medium text-white mb-2">
-                          No Active Proposals
-                        </h3>
+                        <h3 className="text-xl font-medium text-white mb-2">No Active Proposals</h3>
                         <p className="text-daoship-text-gray mb-6">
                           There are currently no active proposals in this DAO.
                         </p>
@@ -804,14 +772,8 @@ const DAODashboard = () => {
                 </motion.div>
 
                 {/* Recent Activity */}
-                <motion.div
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  <h2 className="text-xl font-bold text-white mb-4">
-                    Recent Activity
-                  </h2>
+                <motion.div variants={containerVariants} initial="hidden" animate="visible">
+                  <h2 className="text-xl font-bold text-white mb-4">Recent Activity</h2>
 
                   {recentProposals.length > 0 ? (
                     <div className="grid grid-cols-1 gap-4">
@@ -825,24 +787,15 @@ const DAODashboard = () => {
                         >
                           <GlassmorphicCard className="p-4 hover:bg-white/5 transition-colors">
                             <div className="flex items-center">
-                              <div className="mr-4">
-                                {getStatusIcon(proposal.status)}
-                              </div>
+                              <div className="mr-4">{getStatusIcon(proposal.status)}</div>
                               <div className="flex-1">
-                                <h4 className="text-white font-medium">
-                                  {proposal.title}
-                                </h4>
+                                <h4 className="text-white font-medium">{proposal.title}</h4>
                                 <div className="flex items-center text-daoship-text-gray text-sm mt-1">
-                                  <span className="mr-4">
-                                    {formatDate(proposal.startTime)}
-                                  </span>
+                                  <span className="mr-4">{formatDate(proposal.startTime)}</span>
                                   <span>{getTotalVotes(proposal)} votes</span>
                                 </div>
                               </div>
-                              <motion.div
-                                whileHover={{ x: 5 }}
-                                transition={{ duration: 0.2 }}
-                              >
+                              <motion.div whileHover={{ x: 5 }} transition={{ duration: 0.2 }}>
                                 <ArrowUpRight className="text-daoship-text-gray w-5 h-5" />
                               </motion.div>
                             </div>
@@ -858,12 +811,8 @@ const DAODashboard = () => {
                         transition={{ duration: 0.5 }}
                       >
                         <Activity className="w-12 h-12 mx-auto text-daoship-text-gray mb-4" />
-                        <h3 className="text-xl font-medium text-white mb-2">
-                          No Recent Activity
-                        </h3>
-                        <p className="text-daoship-text-gray">
-                          There hasn't been any recent activity in this DAO.
-                        </p>
+                        <h3 className="text-xl font-medium text-white mb-2">No Recent Activity</h3>
+                        <p className="text-daoship-text-gray">There hasn't been any recent activity in this DAO.</p>
                       </motion.div>
                     </GlassmorphicCard>
                   )}
@@ -880,22 +829,14 @@ const DAODashboard = () => {
                 transition={{ duration: 0.5 }}
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-white">
-                    All Proposals
-                  </h2>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
+                  <h2 className="text-2xl font-bold text-white">All Proposals</h2>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                     <GradientButton onClick={handleCreateProposal}>
                       <Plus className="w-4 h-4 mr-2" />
                       Create Proposal
                     </GradientButton>
                   </motion.div>
                 </div>
-
-
-
 
                 {proposals.length > 0 ? (
                   <motion.div
@@ -922,17 +863,12 @@ const DAODashboard = () => {
                                   {proposal.status}
                                 </span>
                               </div>
-                              <h3 className="text-white font-medium text-lg mb-1">
-                                {proposal.title}
-                              </h3>
-                              <p className="text-daoship-text-gray text-sm line-clamp-2">
-                                {proposal.description}
-                              </p>
+                              <h3 className="text-white font-medium text-lg mb-1">{proposal.title}</h3>
+                              <p className="text-daoship-text-gray text-sm line-clamp-2">{proposal.description}</p>
                             </div>
                             <div className="flex flex-col space-y-2">
                               <div className="text-daoship-text-gray text-sm">
-                                {formatDate(proposal.startTime)} -{" "}
-                                {formatDate(proposal.endTime)}
+                                {formatDate(proposal.startTime)} - {formatDate(proposal.endTime)}
                               </div>
                               <motion.button
                                 whileHover={{ scale: 1.05 }}
@@ -950,10 +886,7 @@ const DAODashboard = () => {
                                 className="h-full bg-green-500"
                                 initial={{ width: 0 }}
                                 animate={{
-                                  width: `${getVotePercentage(
-                                    proposal.yesVotes,
-                                    proposal
-                                  )}%`,
+                                  width: `${getVotePercentage(proposal.yesVotes, proposal)}%`,
                                 }}
                                 transition={{ duration: 1, delay: 0.5 }}
                               />
@@ -961,10 +894,7 @@ const DAODashboard = () => {
                                 className="h-full bg-red-500"
                                 initial={{ width: 0 }}
                                 animate={{
-                                  width: `${getVotePercentage(
-                                    proposal.noVotes,
-                                    proposal
-                                  )}%`,
+                                  width: `${getVotePercentage(proposal.noVotes, proposal)}%`,
                                 }}
                                 transition={{ duration: 1, delay: 0.5 }}
                               />
@@ -972,10 +902,7 @@ const DAODashboard = () => {
                                 className="h-full bg-gray-500"
                                 initial={{ width: 0 }}
                                 animate={{
-                                  width: `${getVotePercentage(
-                                    proposal.abstainVotes,
-                                    proposal
-                                  )}%`,
+                                  width: `${getVotePercentage(proposal.abstainVotes, proposal)}%`,
                                 }}
                                 transition={{ duration: 1, delay: 0.5 }}
                               />
@@ -983,27 +910,16 @@ const DAODashboard = () => {
                           </div>
                           <div className="flex justify-between mt-2 text-xs text-daoship-text-gray">
                             <span>
-                              {proposal.yesVotes} Yes (
-                              {getVotePercentage(
-                                proposal.yesVotes,
-                                proposal
-                              ).toFixed(1)}
+                              {proposal.yesVotes} Yes ({getVotePercentage(proposal.yesVotes, proposal).toFixed(1)}
                               %)
                             </span>
                             <span>
-                              {proposal.noVotes} No (
-                              {getVotePercentage(
-                                proposal.noVotes,
-                                proposal
-                              ).toFixed(1)}
+                              {proposal.noVotes} No ({getVotePercentage(proposal.noVotes, proposal).toFixed(1)}
                               %)
                             </span>
                             <span>
                               {proposal.abstainVotes} Abstain (
-                              {getVotePercentage(
-                                proposal.abstainVotes,
-                                proposal
-                              ).toFixed(1)}
+                              {getVotePercentage(proposal.abstainVotes, proposal).toFixed(1)}
                               %)
                             </span>
                           </div>
@@ -1019,12 +935,9 @@ const DAODashboard = () => {
                       transition={{ duration: 0.5 }}
                     >
                       <FileText className="w-12 h-12 mx-auto text-daoship-text-gray mb-4" />
-                      <h3 className="text-xl font-medium text-white mb-2">
-                        No Proposals Yet
-                      </h3>
+                      <h3 className="text-xl font-medium text-white mb-2">No Proposals Yet</h3>
                       <p className="text-daoship-text-gray mb-6">
-                        This DAO doesn't have any proposals yet. Create the
-                        first one!
+                        This DAO doesn't have any proposals yet. Create the first one!
                       </p>
                       <GradientButton onClick={handleCreateProposal}>
                         <Plus className="w-4 h-4 mr-2" />
@@ -1046,15 +959,9 @@ const DAODashboard = () => {
               >
                 <h2 className="text-2xl font-bold text-white mb-6">DAO Members & Collaborators</h2>
                 <GlassmorphicCard className="p-6">
-                  <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                  >
+                  <motion.div variants={containerVariants} initial="hidden" animate="visible">
                     {/* DAO Creator */}
-                    <h3 className="text-xl font-semibold text-white mb-4 border-b border-white/10 pb-2">
-                      DAO Creator
-                    </h3>
+                    <h3 className="text-xl font-semibold text-white mb-4 border-b border-white/10 pb-2">DAO Creator</h3>
                     <div className="py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
@@ -1063,19 +970,20 @@ const DAODashboard = () => {
                           </div>
                           <div className="ml-3">
                             <h4 className="text-white font-medium">
-                              {typeof dao.creator === 'object' ? dao.creator.username : 'Unknown Creator'}
-                              {(typeof dao.creator === 'object' && dao.creator.walletAddress === walletAddress) || (dao.creator === walletAddress) && <span className="text-daoship-primary text-xs ml-2">(You)</span>}
+                              {typeof dao.creator === "object" ? dao.creator.username : "Unknown Creator"}
+                              {(typeof dao.creator === "object" && dao.creator.walletAddress === walletAddress) ||
+                                (dao.creator === walletAddress && (
+                                  <span className="text-daoship-primary text-xs ml-2">(You)</span>
+                                ))}
                             </h4>
                             <p className="text-daoship-text-gray text-sm">
-                              {typeof dao.creator === 'object'
+                              {typeof dao.creator === "object"
                                 ? `${dao.creator.walletAddress.substring(0, 6)}...${dao.creator.walletAddress.substring(dao.creator.walletAddress.length - 4)}`
                                 : `${dao.creator.substring(0, 6)}...${dao.creator.substring(dao.creator.length - 4)}`}
                             </p>
                           </div>
                         </div>
-                        <div className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm">
-                          Creator
-                        </div>
+                        <div className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm">Creator</div>
                       </div>
                     </div>
 
@@ -1091,17 +999,21 @@ const DAODashboard = () => {
                           </div>
                           <div className="ml-3">
                             <h4 className="text-white font-medium">
-                              {dao.manager === (dao.creator as any)?.walletAddress ? (typeof dao.creator === 'object' ? dao.creator.username : 'DAO Creator') : 'DAO Manager'}
-                              {dao.manager === walletAddress && <span className="text-daoship-primary text-xs ml-2">(You)</span>}
+                              {dao.manager === (dao.creator as any)?.walletAddress
+                                ? typeof dao.creator === "object"
+                                  ? dao.creator.username
+                                  : "DAO Creator"
+                                : "DAO Manager"}
+                              {dao.manager === walletAddress && (
+                                <span className="text-daoship-primary text-xs ml-2">(You)</span>
+                              )}
                             </h4>
                             <p className="text-daoship-text-gray text-sm">
                               {`${dao.manager.substring(0, 6)}...${dao.manager.substring(dao.manager.length - 4)}`}
                             </p>
                           </div>
                         </div>
-                        <div className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">
-                          Manager
-                        </div>
+                        <div className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">Manager</div>
                       </div>
                     </div>
 
@@ -1132,31 +1044,78 @@ const DAODashboard = () => {
                                 <div className="ml-3">
                                   <h4 className="text-white font-medium">
                                     {member.username || "Anonymous Member"}
-                                    {member.walletAddress === walletAddress && <span className="text-daoship-primary text-xs ml-2">(You)</span>}
+                                    {member.walletAddress === walletAddress && (
+                                      <span className="text-daoship-primary text-xs ml-2">(You)</span>
+                                    )}
                                   </h4>
                                   <p className="text-daoship-text-gray text-sm">
                                     {member.walletAddress
-                                      ? `${member.walletAddress.substring(
-                                        0,
-                                        6
-                                      )}...${member.walletAddress.substring(
-                                        member.walletAddress.length - 4
-                                      )}`
+                                      ? `${member.walletAddress.substring(0, 6)}...${member.walletAddress.substring(
+                                          member.walletAddress.length - 4,
+                                        )}`
                                       : "No address found"}
                                   </p>
                                 </div>
                               </div>
                               <div className="flex items-center">
-                                <div className="px-3 py-1 bg-white/10 rounded-full text-sm">
-                                  1 Voting Power
-                                </div>
+                                <div className="px-3 py-1 bg-white/10 rounded-full text-sm">1 Voting Power</div>
                               </div>
                             </div>
                           </motion.div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-daoship-text-gray text-center py-4">No members in this DAO yet (excluding creator/manager).</p>
+                      <p className="text-daoship-text-gray text-center py-4">
+                        No members in this DAO yet (excluding creator/manager).
+                      </p>
+                    )}
+
+                    {/* Pending Invitations */}
+                    {daoInvitations.length > 0 && (
+                      <>
+                        <h3 className="text-xl font-semibold text-white mb-4 mt-6 border-b border-white/10 pb-2">
+                          Invitations ({daoInvitations.filter((inv) => inv.status === "pending").length} pending)
+                        </h3>
+                        <div className="grid grid-cols-1 divide-y divide-white/10">
+                          {daoInvitations.map((invitation, index) => (
+                            <motion.div
+                              key={invitation._id || index}
+                              variants={itemVariants}
+                              custom={index}
+                              className="py-4 first:pt-0 last:pb-0"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center overflow-hidden">
+                                    <span className="text-white font-medium">
+                                      {invitation.githubUsername.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div className="ml-3">
+                                    <h4 className="text-white font-medium">{invitation.githubUsername}</h4>
+                                    <p className="text-daoship-text-gray text-sm">
+                                      Invited {new Date(invitation.invitedAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center">
+                                  <div
+                                    className={`px-3 py-1 rounded-full text-sm ${
+                                      invitation.status === "pending"
+                                        ? "bg-yellow-500/20 text-yellow-400"
+                                        : invitation.status === "accepted"
+                                          ? "bg-green-500/20 text-green-400"
+                                          : "bg-red-500/20 text-red-400"
+                                    }`}
+                                  >
+                                    {invitation.status.charAt(0).toUpperCase() + invitation.status.slice(1)}
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </>
                     )}
 
                     {/* GitHub Collaborators and Contributors */}
@@ -1179,11 +1138,7 @@ const DAODashboard = () => {
                     ) : githubCollaborators.length > 0 ? (
                       <div className="grid grid-cols-1 divide-y divide-white/10">
                         {githubCollaborators.map((collab) => (
-                          <motion.div
-                            key={collab.id}
-                            variants={itemVariants}
-                            className="py-4 first:pt-0 last:pb-0"
-                          >
+                          <motion.div key={collab.id} variants={itemVariants} className="py-4 first:pt-0 last:pb-0">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center">
                                 <div className="h-10 w-10 rounded-full overflow-hidden mr-3">
@@ -1197,10 +1152,27 @@ const DAODashboard = () => {
                                   <h4 className="text-white font-medium">
                                     {collab.name || collab.login}
                                     {collab.site_admin && <span className="text-yellow-400 text-xs ml-2">(Admin)</span>}
-                                    {dao.invitedCollaborators?.includes(collab.login) && <span className="text-purple-400 text-xs ml-2">(Invited)</span>}
+                                    {(() => {
+                                      const invitationStatus = getInvitationStatus(collab.login);
+                                      if (invitationStatus === "accepted") {
+                                        return <span className="text-green-400 text-xs ml-2">(Member)</span>;
+                                      } else if (invitationStatus === "pending") {
+                                        return <span className="text-yellow-400 text-xs ml-2">(Invited)</span>;
+                                      } else if (invitationStatus === "declined") {
+                                        return <span className="text-red-400 text-xs ml-2">(Declined)</span>;
+                                      } else if (dao.invitedCollaborators?.includes(collab.login)) {
+                                        return <span className="text-purple-400 text-xs ml-2">(Invited)</span>;
+                                      }
+                                      return null;
+                                    })()}
                                   </h4>
                                   <p className="text-daoship-text-gray text-sm">
-                                    <a href={collab.html_url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                    <a
+                                      href={collab.html_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="hover:underline"
+                                    >
                                       @{collab.login}
                                     </a>
                                   </p>
@@ -1209,7 +1181,11 @@ const DAODashboard = () => {
                               <div className="flex flex-col items-end text-sm">
                                 <div className="flex items-center text-daoship-text-gray">
                                   <Coins className="w-4 h-4 mr-1 text-daoship-mint" />
-                                  <span className="font-bold text-white mr-1">{collab.allocatedTokens?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || 0}</span> {dao.tokenSymbol}
+                                  <span className="font-bold text-white mr-1">
+                                    {collab.allocatedTokens?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ||
+                                      0}
+                                  </span>{" "}
+                                  {dao.tokenSymbol}
                                 </div>
                                 {collab.contributions && (
                                   <div className="text-xs text-daoship-text-gray mt-1 text-right">
@@ -1217,7 +1193,8 @@ const DAODashboard = () => {
                                       <GitCommit className="w-3 h-3 mr-1" /> {collab.contributions.commits} commits
                                     </span>
                                     <span className="flex items-center justify-end mt-0.5">
-                                      <GitPullRequest className="w-3 h-3 mr-1" /> {collab.contributions.pullRequests} PRs
+                                      <GitPullRequest className="w-3 h-3 mr-1" /> {collab.contributions.pullRequests}{" "}
+                                      PRs
                                     </span>
                                     <span className="flex items-center justify-end mt-0.5">
                                       <Bug className="w-3 h-3 mr-1" /> {collab.contributions.issues} issues
@@ -1233,15 +1210,18 @@ const DAODashboard = () => {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-daoship-text-gray text-center py-4">No GitHub collaborators or contributors found for this repository.</p>
+                      <p className="text-daoship-text-gray text-center py-4">
+                        No GitHub collaborators or contributors found for this repository.
+                      </p>
                     )}
 
                     {/* This section now specifically lists invited collaborators who are NOT also detected as GitHub repo contributors/collaborators */}
                     {dao.invitedCollaborators && dao.invitedCollaborators.length > 0 && (
                       <>
                         {(() => {
-                          const nonGithubInvited = dao.invitedCollaborators.filter(invitedLogin =>
-                            !githubCollaborators.some(githubCollab => githubCollab.login === invitedLogin)
+                          const nonGithubInvited = dao.invitedCollaborators.filter(
+                            (invitedLogin) =>
+                              !githubCollaborators.some((githubCollab) => githubCollab.login === invitedLogin),
                           );
                           if (nonGithubInvited.length === 0) return null;
 
@@ -1264,9 +1244,7 @@ const DAODashboard = () => {
                                           <Github className="text-white h-5 w-5" />
                                         </div>
                                         <div className="ml-3">
-                                          <h4 className="text-white font-medium">
-                                            {githubUsername}
-                                          </h4>
+                                          <h4 className="text-white font-medium">{githubUsername}</h4>
                                           <p className="text-daoship-text-gray text-sm">
                                             GitHub Username (Pending Acceptance)
                                           </p>
@@ -1297,9 +1275,7 @@ const DAODashboard = () => {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5 }}
               >
-                <h2 className="text-2xl font-bold text-white mb-6">
-                  DAO Settings
-                </h2>
+                <h2 className="text-2xl font-bold text-white mb-6">DAO Settings</h2>
 
                 <motion.div
                   variants={containerVariants}
@@ -1309,14 +1285,10 @@ const DAODashboard = () => {
                 >
                   <motion.div variants={itemVariants}>
                     <GlassmorphicCard className="p-6">
-                      <h3 className="text-xl font-medium text-white mb-4">
-                        General Information
-                      </h3>
+                      <h3 className="text-xl font-medium text-white mb-4">General Information</h3>
                       <div className="grid grid-cols-1 gap-4">
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            DAO Name
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">DAO Name</label>
                           <input
                             type="text"
                             value={dao.name}
@@ -1325,9 +1297,7 @@ const DAODashboard = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            Description
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">Description</label>
                           <textarea
                             value={dao.description}
                             disabled
@@ -1336,9 +1306,7 @@ const DAODashboard = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            Creation Date
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">Creation Date</label>
                           <input
                             type="text"
                             value={formatDate(dao.createdAt)}
@@ -1347,9 +1315,7 @@ const DAODashboard = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            Contract Address
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">Contract Address</label>
                           <input
                             type="text"
                             value={dao.contractAddress}
@@ -1359,9 +1325,7 @@ const DAODashboard = () => {
                         </div>
                         {dao.githubRepo && (
                           <div>
-                            <label className="block text-daoship-text-gray text-sm mb-1">
-                              GitHub Repository
-                            </label>
+                            <label className="block text-daoship-text-gray text-sm mb-1">GitHub Repository</label>
                             <a
                               href={dao.githubRepo}
                               target="_blank"
@@ -1379,14 +1343,10 @@ const DAODashboard = () => {
 
                   <motion.div variants={itemVariants}>
                     <GlassmorphicCard className="p-6">
-                      <h3 className="text-xl font-medium text-white mb-4">
-                        Token Configuration
-                      </h3>
+                      <h3 className="text-xl font-medium text-white mb-4">Token Configuration</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            Token Name
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">Token Name</label>
                           <input
                             type="text"
                             value={dao.tokenName}
@@ -1395,9 +1355,7 @@ const DAODashboard = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            Token Symbol
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">Token Symbol</label>
                           <input
                             type="text"
                             value={dao.tokenSymbol}
@@ -1417,9 +1375,7 @@ const DAODashboard = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            Vote Price
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">Vote Price</label>
                           <input
                             type="number"
                             value={dao.votePrice}
@@ -1450,9 +1406,7 @@ const DAODashboard = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            Vesting Period (days)
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">Vesting Period (days)</label>
                           <input
                             type="number"
                             value={dao.vestingPeriod}
@@ -1461,7 +1415,7 @@ const DAODashboard = () => {
                           />
                         </div>
                       </div>
-                      {dao.tokenStrategy === 'fixed' && (
+                      {dao.tokenStrategy === "fixed" && (
                         <div className="mt-6">
                           <h4 className="text-white font-medium mb-2">Token Allocation:</h4>
                           <ul className="text-daoship-text-gray text-sm space-y-1">
@@ -1485,14 +1439,10 @@ const DAODashboard = () => {
 
                   <motion.div variants={itemVariants}>
                     <GlassmorphicCard className="p-6">
-                      <h3 className="text-xl font-medium text-white mb-4">
-                        Governance Parameters
-                      </h3>
+                      <h3 className="text-xl font-medium text-white mb-4">Governance Parameters</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            Voting Period (days)
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">Voting Period (days)</label>
                           <input
                             type="number"
                             value={dao.votingPeriod}
@@ -1501,9 +1451,7 @@ const DAODashboard = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-daoship-text-gray text-sm mb-1">
-                            Quorum (%)
-                          </label>
+                          <label className="block text-daoship-text-gray text-sm mb-1">Quorum (%)</label>
                           <input
                             type="number"
                             value={dao.quorum}
@@ -1531,18 +1479,12 @@ const DAODashboard = () => {
 
                   <motion.div variants={itemVariants}>
                     <GlassmorphicCard className="p-6">
-                      <h3 className="text-xl font-medium text-white mb-4">
-                        Advanced Settings
-                      </h3>
+                      <h3 className="text-xl font-medium text-white mb-4">Advanced Settings</h3>
                       <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
                           <div>
-                            <h4 className="text-white font-medium">
-                              Export DAO Data
-                            </h4>
-                            <p className="text-daoship-text-gray text-sm">
-                              Download all DAO data in JSON format
-                            </p>
+                            <h4 className="text-white font-medium">Export DAO Data</h4>
+                            <p className="text-daoship-text-gray text-sm">Download all DAO data in JSON format</p>
                           </div>
                           <motion.button
                             whileHover={{ scale: 1.05 }}
@@ -1556,12 +1498,8 @@ const DAODashboard = () => {
 
                         <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
                           <div>
-                            <h4 className="text-white font-medium">
-                              Transfer Ownership
-                            </h4>
-                            <p className="text-daoship-text-gray text-sm">
-                              Transfer DAO ownership to another address
-                            </p>
+                            <h4 className="text-white font-medium">Transfer Ownership</h4>
+                            <p className="text-daoship-text-gray text-sm">Transfer DAO ownership to another address</p>
                           </div>
                           <motion.button
                             whileHover={{ scale: 1.05 }}
@@ -1575,12 +1513,8 @@ const DAODashboard = () => {
 
                         <div className="flex items-center justify-between p-3 bg-red-500/10 rounded-lg border border-red-500/20">
                           <div>
-                            <h4 className="text-white font-medium">
-                              Danger Zone
-                            </h4>
-                            <p className="text-daoship-text-gray text-sm">
-                              Dissolve this DAO (irreversible action)
-                            </p>
+                            <h4 className="text-white font-medium">Danger Zone</h4>
+                            <p className="text-daoship-text-gray text-sm">Dissolve this DAO (irreversible action)</p>
                           </div>
                           <motion.button
                             whileHover={{ scale: 1.05 }}

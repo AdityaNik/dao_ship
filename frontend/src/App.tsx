@@ -9,6 +9,7 @@ import CreateDAO from "./pages/CreateDAO";
 import DAODashboard from "./pages/DAODashboard";
 import CreateProposal from "./pages/CreateProposal";
 import ProposalView from "./pages/ProposalView";
+import InvitationsPage from "./pages/InvitationsPage";
 import NotFound from "./pages/NotFound";
 import { WagmiProvider } from "wagmi";
 import { config } from "./lib/config";
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/create-dao" element={<CreateDAO />} />
+            <Route path="/invitations" element={<InvitationsPage />} />
             <Route path="/dao/:id" element={<DAODashboard />} />
             <Route path="/dao/:id/create-proposal" element={<CreateProposal />} />
             <Route

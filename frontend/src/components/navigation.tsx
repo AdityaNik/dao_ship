@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import GradientButton from "@/components/ui/gradient-button";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGitHubAuth } from '@/hooks/useGitHubAuth';
+import { useInvitations } from '@/hooks/useInvitations';
 import {
   Wallet,
   ChevronDown,
@@ -14,6 +15,7 @@ import {
   Sparkles,
   Github,
   ExternalLink,
+  Mail,
 } from "lucide-react";
 import { GithubAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/hooks/firebase"; // Ensure this matches your Firebase configuration file path
@@ -29,6 +31,7 @@ import { Connector, useAccount, useConnect } from "wagmi";
 const Navigation = () => {
   const { toast } = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
@@ -42,9 +45,19 @@ const Navigation = () => {
   const [gitHubLoading, setGitHubLoading] = useState(false);
 
   // Use the GitHub auth hook
-  const { user, connectGitHub, disconnectGitHub, getUserData, loading: authLoading } = useGitHubAuth();
+  const { user, connectGitHub, disconnectGitHub, getUserData, loading: authLoading, githubUsername: extractedGithubUsername } = useGitHubAuth();
   const {connect } = useConnect()
   const {address} = useAccount();
+
+  // Use the invitations hook
+  const { 
+    invitations, 
+    loading: invitationsLoading, 
+    pendingCount, 
+    acceptInvitation, 
+    declineInvitation,
+    fetchInvitations 
+  } = useInvitations(extractedGithubUsername);
 
   // Determine if GitHub is connected
   const isGitHubConnected = !!user;
@@ -376,6 +389,22 @@ const Navigation = () => {
           ))}
 
           <div className="flex items-center space-x-3">
+            {/* Invitation Badge - Always show when user is connected */}
+            {isGitHubConnected && (
+              <button
+                onClick={() => navigate('/invitations')}
+                className="relative p-2 bg-gray-800/80 hover:bg-gray-700/80 text-white rounded-lg transition-colors border border-gray-600/50"
+                title="View Invitations"
+              >
+                <Mail className="h-5 w-5" />
+                {pendingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* GitHub Authentication Button */}
             {isGitHubConnected ? (
               <div className="relative github-menu-container">
@@ -443,6 +472,21 @@ const Navigation = () => {
                             GitHub Profile (N/A)
                           </div>
                         )}
+                        <button
+                          onClick={() => {
+                            setIsGitHubMenuOpen(false);
+                            navigate('/invitations');
+                          }}
+                          className="flex items-center w-full text-left px-4 py-2 text-sm text-white hover:bg-white/10 rounded-md"
+                        >
+                          <Mail className="h-4 w-4 mr-2" />
+                          DAO Invitations
+                          {pendingCount > 0 && (
+                            <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-2 py-1 min-w-[1.25rem] text-center">
+                              {pendingCount}
+                            </span>
+                          )}
+                        </button>
                         <button
                           onClick={() => {
                             setIsGitHubMenuOpen(false);

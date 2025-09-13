@@ -14,6 +14,50 @@ export const useGitHubAuth = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Helper function to extract and clean GitHub username
+  const getGitHubUsername = (user) => {
+    if (!user) return null;
+    
+    console.log('Extracting GitHub username from user:', {
+      displayName: user.displayName,
+      email: user.email,
+      providerData: user.providerData
+    });
+    
+    // Try to get the GitHub username from provider data
+    const githubProvider = user.providerData.find(provider => provider.providerId === 'github.com');
+    if (githubProvider) {
+      console.log('GitHub provider data:', githubProvider);
+      
+      // Check if email is GitHub noreply format which contains the username
+      if (githubProvider.email && githubProvider.email.includes('@users.noreply.github.com')) {
+        const username = githubProvider.email.split('@')[0];
+        console.log('Extracted username from noreply email:', username);
+        // Remove any trailing numbers that might be appended
+        const cleanedUsername = username.replace(/\d+$/, '');
+        console.log('Cleaned username (removed trailing numbers):', cleanedUsername);
+        return cleanedUsername;
+      }
+    }
+    
+    // Fallback to display name with cleaning
+    if (user.displayName) {
+      // Remove spaces and trailing numbers
+      const cleaned = user.displayName.replace(/\s+/g, '').replace(/\d+$/, '');
+      console.log('Cleaned display name:', { original: user.displayName, cleaned });
+      return cleaned;
+    }
+    
+    // Final fallback to email prefix
+    if (user.email) {
+      const emailUsername = user.email.split('@')[0].replace(/\d+$/, '');
+      console.log('Email-based username (cleaned):', emailUsername);
+      return emailUsername;
+    }
+    
+    return null;
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
@@ -112,6 +156,7 @@ export const useGitHubAuth = () => {
     connectGitHub,
     disconnectGitHub,
     getUserData,
-    isConnected: !!user
+    isConnected: !!user,
+    githubUsername: getGitHubUsername(user)
   };
 };

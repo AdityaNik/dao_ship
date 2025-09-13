@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Users, UserPlus, CheckCircle, RefreshCw } from "lucide-react";
 import axios from "axios"; // Make sure axios is installed
 import { useWallet } from "@/hooks/use-wallet";
+import { useAccount } from "wagmi";
 
 const steps = [
   "Basic Information",
@@ -39,7 +40,6 @@ interface ValidationErrors {
 }
 
 const CreateDAO = () => {
-  const { isConnected, walletAddress, connect } = useWallet();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
@@ -49,6 +49,7 @@ const CreateDAO = () => {
   const [collaboratorsError, setCollaboratorsError] = useState(null);
   const [invitingCollaborators, setInvitingCollaborators] = useState([]);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const {address} = useAccount();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -409,7 +410,7 @@ const CreateDAO = () => {
     }
 
     // Only show wallet connection message if not connected
-    if (!isConnected) {
+    if (!address) {
       toast({
         title: "Wallet Not Connected",
         description: "Please connect your wallet using the button in the navigation bar",
@@ -425,8 +426,8 @@ const CreateDAO = () => {
       const daoData = {
         name: formData.name,
         description: formData.description,
-        creator: walletAddress, // Assign the creator's wallet address
-        manager: walletAddress, // Manager defaults to creator for now
+        creator: address, // Assign the creator's wallet address
+        manager: address, // Manager defaults to creator for now
         // You'll need to generate contractAddress on the backend or during deployment
         // For now, let's set a placeholder or omit if backend handles it
         contractAddress: "0xPlaceholderContractAddress", // Replace with actual contract address
@@ -446,7 +447,7 @@ const CreateDAO = () => {
         vestingPeriod: formData.vestingPeriod,
         minContributionForVoting: formData.minContributionForVoting,
         invitedCollaborators: formData.invitedCollaborators, // GitHub IDs/usernames
-        members: [walletAddress], // Creator is the first member by default
+        members: [address], // Creator is the first member by default
       };
 
       const response = await axios.post(`${API_URL}/dao`, daoData);
@@ -456,9 +457,21 @@ const CreateDAO = () => {
       }
 
       const dao = response.data;
+      
+      // Log invitation details for debugging
+      if (formData.invitedCollaborators && formData.invitedCollaborators.length > 0) {
+        console.log('DAO created with invitations sent to:', formData.invitedCollaborators);
+      }
+      
+      // Show success message with invitation info
+      let successMessage = "DAO created successfully!";
+      if (formData.invitedCollaborators && formData.invitedCollaborators.length > 0) {
+        successMessage += ` ${formData.invitedCollaborators.length} invitation${formData.invitedCollaborators.length > 1 ? 's' : ''} sent to GitHub collaborators.`;
+      }
+      
       toast({
         title: "Success",
-        description: "DAO created successfully!",
+        description: successMessage,
       });
       navigate(`/dao/${dao._id}`);
     } catch (error) {
@@ -1205,9 +1218,23 @@ const CreateDAO = () => {
                 {formData.invitedCollaborators && formData.invitedCollaborators.length > 0 && (
                   <div>
                     <p className="text-sm text-white/60">Invited Collaborators</p>
-                    <p className="text-white">
-                      {formData.invitedCollaborators.length} collaborator{formData.invitedCollaborators.length !== 1 ? 's' : ''} invited (GitHub usernames)
-                    </p>
+                    <div className="mt-2">
+                      <p className="text-white">
+                        {formData.invitedCollaborators.length} collaborator{formData.invitedCollaborators.length !== 1 ? 's' : ''} invited
+                      </p>
+                      <div className="mt-2 space-y-1">
+                        {formData.invitedCollaborators.slice(0, 5).map((username, index) => (
+                          <span key={index} className="inline-block text-xs px-2 py-1 bg-white/10 rounded-full text-white/70 mr-2 mb-1">
+                            @{username}
+                          </span>
+                        ))}
+                        {formData.invitedCollaborators.length > 5 && (
+                          <span className="text-xs text-white/50">
+                            +{formData.invitedCollaborators.length - 5} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
