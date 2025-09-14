@@ -63,12 +63,14 @@ export const getProposal = async (daoId: string, proposalId: string) => {
 export const voteOnProposal = async (
   daoId: string,
   proposalId: string,
-  voteData: { vote: "yes" | "no" | "abstain" }
+  voteData: {
+    vote: "yes" | "no" | "abstain";
+    walletAddress: string;
+    githubUsername: string;
+    votingPower?: number;
+  },
 ) => {
-  const response = await api.post(
-    `/dao/${daoId}/proposals/${proposalId}/vote`,
-    voteData
-  );
+  const response = await api.post(`/proposal/${proposalId}/vote`, voteData);
   return response.data;
 };
 
