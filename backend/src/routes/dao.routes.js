@@ -45,6 +45,7 @@ router.post("/", async (req, res) => {
       manager, // Changed from 'creator' to 'manager'
       votePrice,
       tokenName,
+      contractAddress,
       tokenSymbol,
       tokenSupply,
       votingPeriod,
@@ -58,6 +59,7 @@ router.post("/", async (req, res) => {
       vestingPeriod,
       minContributionForVoting,
       invitedCollaborators,
+      members,
     } = req.body;
 
     console.log("Creating DAO with parameters:", {
@@ -65,29 +67,25 @@ router.post("/", async (req, res) => {
       description,
       manager,
       votePrice,
+      contractAddress,
     });
-    // Deploy DAO contract using AlgoKit
-    const contractAddress = await deployDAOContract({
-      name,
-      votingPeriod,
-      quorum,
-      // You might want to pass additional contract parameters here
-      votePrice,
-      tokenName,
-      tokenSymbol,
-      tokenSupply,
-      minTokens,
-    });
-    // const contractAddress = "dummy-algo-address";
 
-    console.log("Received DAO create request with:", req.body);
+    // Generate a unique contract address if placeholder is used
+    let finalContractAddress = contractAddress;
+    if (contractAddress === "0xPlaceholderContractAddress") {
+      // Generate a unique placeholder using timestamp and random string
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 8);
+      finalContractAddress = `0xPlaceholder_${timestamp}_${random}`;
+      console.log("Generated unique contract address:", finalContractAddress);
+    }
 
     const dao = new DAO({
       name,
       description,
       creator: manager, // Map manager to creator if your DAO model uses 'creator'
       manager, // Add manager field if your model supports it
-      contractAddress,
+      contractAddress: finalContractAddress,
       votePrice,
       tokenName,
       tokenSymbol,
@@ -103,30 +101,45 @@ router.post("/", async (req, res) => {
       vestingPeriod,
       minContributionForVoting,
       invitedCollaborators: invitedCollaborators || [], // Handle array of collaborators
-      members: [{ walletAddress: manager }], // Initialize with manager as first member
-      // Add invited collaborators to members if they should be auto-added
-      // members: [manager, ...(invitedCollaborators || [])],
+      members: members || [{ walletAddress: manager }], // Use provided members array or default to
     });
-
+    console.log("DAO object to be saved:", dao);
     const savedDao = await dao.save();
+    console.log("DAO created with ID:", savedDao._id);
+
+    // Debug: Check invitedCollaborators data
+    console.log("Debug - invitedCollaborators:", {
+      raw: invitedCollaborators,
+      type: typeof invitedCollaborators,
+      isArray: Array.isArray(invitedCollaborators),
+      length: invitedCollaborators?.length,
+    });
 
     // Create invitations for all invited collaborators
     if (invitedCollaborators && invitedCollaborators.length > 0) {
       try {
-        const invitations = invitedCollaborators.map((githubUsername) => ({
+        // Remove duplicates from invitedCollaborators array
+        const uniqueCollaborators = [...new Set(invitedCollaborators)];
+        console.log("Unique collaborators to invite:", uniqueCollaborators);
+
+        const invitations = uniqueCollaborators.map((githubUsername) => ({
           daoId: savedDao._id,
           githubUsername: githubUsername,
           invitedBy: manager,
           status: "pending",
         }));
 
-        await Invitation.insertMany(invitations);
-        console.log(`Created ${invitations.length} invitations for DAO ${savedDao._id}`);
+        console.log("Invitations to create:", invitations);
+
+        await Invitation.insertMany(invitations, { ordered: false });
+        console.log(`✅ Created ${invitations.length} invitations for DAO ${savedDao._id}`);
       } catch (invitationError) {
-        console.error("Error creating invitations:", invitationError);
+        console.error("❌ Error creating invitations:", invitationError);
         // Don't fail the DAO creation if invitations fail
         // You might want to log this for monitoring
       }
+    } else {
+      console.log("ℹ️  No collaborators to invite or invitedCollaborators is empty/undefined");
     }
 
     res.status(201).json(savedDao);

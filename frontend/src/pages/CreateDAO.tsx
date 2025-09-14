@@ -12,6 +12,7 @@ import { Upload, Users, UserPlus, CheckCircle, RefreshCw } from "lucide-react";
 import axios from "axios"; // Make sure axios is installed
 import { useWallet } from "@/hooks/use-wallet";
 import { useAccount } from "wagmi";
+import { useGitHubAuth } from "@/hooks/useGitHubAuth";
 
 const steps = [
   "Basic Information",
@@ -49,7 +50,8 @@ const CreateDAO = () => {
   const [collaboratorsError, setCollaboratorsError] = useState(null);
   const [invitingCollaborators, setInvitingCollaborators] = useState([]);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
-  const {address} = useAccount();
+  const { address } = useAccount();
+  const { githubUsername } = useGitHubAuth();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -136,11 +138,11 @@ const CreateDAO = () => {
           // Basic URL validation
           try {
             const url = new URL(formData.githubRepo);
-            if (url.hostname !== 'github.com') {
-              errors.githubRepo = 'Must be a valid GitHub repository URL';
+            if (url.hostname !== "github.com") {
+              errors.githubRepo = "Must be a valid GitHub repository URL";
             }
           } catch (e) {
-            errors.githubRepo = 'Invalid URL format';
+            errors.githubRepo = "Invalid URL format";
           }
         }
         if (formData.tokenStrategy === "fixed" && formData.tokenSupply <= 0) {
@@ -148,7 +150,8 @@ const CreateDAO = () => {
         }
         // Validate token allocation adds up to 100%
         if (formData.tokenStrategy === "fixed") {
-          const totalAllocation = formData.tokenAllocation.initialDistribution +
+          const totalAllocation =
+            formData.tokenAllocation.initialDistribution +
             formData.tokenAllocation.futureContributors +
             formData.tokenAllocation.treasury;
           if (totalAllocation !== 100) {
@@ -183,9 +186,7 @@ const CreateDAO = () => {
   };
 
   // Handle text input changes
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
@@ -202,25 +203,25 @@ const CreateDAO = () => {
       if (match) {
         return {
           owner: match[1],
-          repo: match[2].replace('.git', '') // Remove .git if present
+          repo: match[2].replace(".git", ""), // Remove .git if present
         };
       }
       return null;
     } catch (error) {
-      console.error('Error parsing GitHub URL:', error);
+      console.error("Error parsing GitHub URL:", error);
       return null;
     }
   };
 
   const fetchCollaborators = async () => {
     if (!formData.githubRepo) {
-      setCollaboratorsError('GitHub repository URL is required to fetch collaborators');
+      setCollaboratorsError("GitHub repository URL is required to fetch collaborators");
       return;
     }
 
     const repoInfo = parseGitHubUrl(formData.githubRepo);
     if (!repoInfo) {
-      setCollaboratorsError('Invalid GitHub repository URL format');
+      setCollaboratorsError("Invalid GitHub repository URL format");
       return;
     }
 
@@ -240,24 +241,23 @@ const CreateDAO = () => {
         throw new Error("GitHub API token is not configured. Please set VITE_GITHUB_TOKEN in your .env file.");
       }
 
-      const response = await fetch(
-        `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/collaborators`,
-        {
-          headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-          },
-        }
-      );
+      const response = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/collaborators`, {
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      });
 
       if (!response.ok) {
         if (response.status === 404) {
-          throw new Error('Repository not found or you don\'t have access. Please ensure the URL is correct and the repository is public or you have sufficient permissions.');
+          throw new Error(
+            "Repository not found or you don't have access. Please ensure the URL is correct and the repository is public or you have sufficient permissions.",
+          );
         } else if (response.status === 401) {
-          throw new Error('Invalid GitHub token or insufficient permissions. Please check your token.');
+          throw new Error("Invalid GitHub token or insufficient permissions. Please check your token.");
         } else if (response.status === 403) {
-          const rateLimitReset = response.headers.get('X-RateLimit-Reset');
-          const resetTime = rateLimitReset ? new Date(parseInt(rateLimitReset) * 1000).toLocaleTimeString() : 'unknown';
+          const rateLimitReset = response.headers.get("X-RateLimit-Reset");
+          const resetTime = rateLimitReset ? new Date(parseInt(rateLimitReset) * 1000).toLocaleTimeString() : "unknown";
           throw new Error(`GitHub API rate limit exceeded or forbidden. Please wait until ${resetTime} and try again.`);
         } else {
           throw new Error(`Failed to fetch collaborators: ${response.statusText}`);
@@ -272,8 +272,8 @@ const CreateDAO = () => {
           try {
             const userResponse = await fetch(collaborator.url, {
               headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json',
+                Authorization: `token ${GITHUB_TOKEN}`,
+                Accept: "application/vnd.github.v3+json",
               },
             });
 
@@ -293,16 +293,15 @@ const CreateDAO = () => {
             console.error(`Error fetching details for ${collaborator.login}:`, error);
             return collaborator;
           }
-        })
+        }),
       );
 
       setCollaborators(collaboratorsWithDetails);
       if (collaboratorsWithDetails.length === 0) {
-        setCollaboratorsError('No collaborators found for this repository.');
+        setCollaboratorsError("No collaborators found for this repository.");
       }
-
     } catch (error) {
-      console.error('Error fetching collaborators:', error);
+      console.error("Error fetching collaborators:", error);
       setCollaboratorsError(error.message);
     } finally {
       setCollaboratorsLoading(false);
@@ -311,7 +310,7 @@ const CreateDAO = () => {
 
   // Function to handle collaborator invitation
   const handleInviteCollaborator = async (collaborator) => {
-    setInvitingCollaborators(prev => [...prev, collaborator.id]);
+    setInvitingCollaborators((prev) => [...prev, collaborator.id]);
 
     try {
       // Store the GitHub login (username) or id in invitedCollaborators
@@ -320,11 +319,11 @@ const CreateDAO = () => {
       const collaboratorIdentifier = collaborator.login; // Or collaborator.id if you prefer numeric ID
 
       // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        invitedCollaborators: [...(prev.invitedCollaborators || []), collaboratorIdentifier]
+        invitedCollaborators: [...(prev.invitedCollaborators || []), collaboratorIdentifier],
       }));
 
       console.log(`Invitation sent to ${collaborator.login}`);
@@ -333,22 +332,27 @@ const CreateDAO = () => {
         title: "Invitation Sent",
         description: `Invitation sent to ${collaborator.login}`,
       });
-
     } catch (error) {
-      console.error('Error inviting collaborator:', error);
+      console.error("Error inviting collaborator:", error);
       toast({
         title: "Error",
         description: "Failed to send invitation. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setInvitingCollaborators(prev => prev.filter(id => id !== collaborator.id));
+      setInvitingCollaborators((prev) => prev.filter((id) => id !== collaborator.id));
     }
   };
 
   // Auto-fetch collaborators when reaching step 3 (Invite Collaborators is now step 3)
   useEffect(() => {
-    if (currentStep === 3 && formData.githubRepo && collaborators.length === 0 && !collaboratorsLoading && !collaboratorsError) {
+    if (
+      currentStep === 3 &&
+      formData.githubRepo &&
+      collaborators.length === 0 &&
+      !collaboratorsLoading &&
+      !collaboratorsError
+    ) {
       fetchCollaborators();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -419,6 +423,16 @@ const CreateDAO = () => {
       return;
     }
 
+    // Check if GitHub is authenticated
+    if (!githubUsername) {
+      toast({
+        title: "GitHub Not Connected",
+        description: "Please log in with GitHub to create a DAO",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -447,8 +461,15 @@ const CreateDAO = () => {
         vestingPeriod: formData.vestingPeriod,
         minContributionForVoting: formData.minContributionForVoting,
         invitedCollaborators: formData.invitedCollaborators, // GitHub IDs/usernames
-        members: [address], // Creator is the first member by default
+        members: [
+          {
+            username: githubUsername,
+            walletAddress: address,
+          },
+        ], // Creator is the first member by default with both username and wallet
       };
+
+      console.log("Submitting DAO data:", daoData);
 
       const response = await axios.post(`${API_URL}/dao`, daoData);
 
@@ -457,18 +478,18 @@ const CreateDAO = () => {
       }
 
       const dao = response.data;
-      
+
       // Log invitation details for debugging
       if (formData.invitedCollaborators && formData.invitedCollaborators.length > 0) {
-        console.log('DAO created with invitations sent to:', formData.invitedCollaborators);
+        console.log("DAO created with invitations sent to:", formData.invitedCollaborators);
       }
-      
+
       // Show success message with invitation info
       let successMessage = "DAO created successfully!";
       if (formData.invitedCollaborators && formData.invitedCollaborators.length > 0) {
-        successMessage += ` ${formData.invitedCollaborators.length} invitation${formData.invitedCollaborators.length > 1 ? 's' : ''} sent to GitHub collaborators.`;
+        successMessage += ` ${formData.invitedCollaborators.length} invitation${formData.invitedCollaborators.length > 1 ? "s" : ""} sent to GitHub collaborators.`;
       }
-      
+
       toast({
         title: "Success",
         description: successMessage,
@@ -533,9 +554,7 @@ const CreateDAO = () => {
                   onChange={handleChange}
                   required
                 />
-                {validationErrors.name && (
-                  <p className="text-red-400 text-sm mt-1">{validationErrors.name}</p>
-                )}
+                {validationErrors.name && <p className="text-red-400 text-sm mt-1">{validationErrors.name}</p>}
               </div>
 
               <div>
@@ -556,29 +575,15 @@ const CreateDAO = () => {
                 <div className="flex items-center space-x-4">
                   <div className="w-24 h-24 rounded-lg overflow-hidden glass-card flex items-center justify-center">
                     {formData.logoPreview ? (
-                      <img
-                        src={formData.logoPreview}
-                        alt="DAO Logo Preview"
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={formData.logoPreview} alt="DAO Logo Preview" className="w-full h-full object-cover" />
                     ) : (
                       <Upload className="h-8 w-8 text-white/50" />
                     )}
                   </div>
                   <div className="flex-1">
-                    <input
-                      type="file"
-                      id="logo"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="hidden"
-                    />
+                    <input type="file" id="logo" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                     <label htmlFor="logo" className="cursor-pointer w-full">
-                      <GradientButton
-                        type="button"
-                        variant="secondary"
-                        className="w-full"
-                      >
+                      <GradientButton type="button" variant="secondary" className="w-full">
                         <Upload className="mr-2 h-4 w-4" />
                         {formData.logo ? "Change Logo" : "Upload Logo"}
                       </GradientButton>
@@ -599,9 +604,7 @@ const CreateDAO = () => {
                 min={1}
                 max={30}
                 value={formData.stakingPeriod}
-                onChange={(value) =>
-                  setFormData({ ...formData, stakingPeriod: value })
-                }
+                onChange={(value) => setFormData({ ...formData, stakingPeriod: value })}
                 unit=" days"
               />
               {validationErrors.stakingPeriod && (
@@ -614,9 +617,7 @@ const CreateDAO = () => {
                 min={1}
                 max={30}
                 value={formData.votingPeriod}
-                onChange={(value) =>
-                  setFormData({ ...formData, votingPeriod: value })
-                }
+                onChange={(value) => setFormData({ ...formData, votingPeriod: value })}
                 unit=" days"
               />
               {validationErrors.votingPeriod && (
@@ -633,9 +634,7 @@ const CreateDAO = () => {
                 onChange={(value) => setFormData({ ...formData, quorum: value })}
                 unit="%"
               />
-              {validationErrors.quorum && (
-                <p className="text-red-400 text-sm mt-1">{validationErrors.quorum}</p>
-              )}
+              {validationErrors.quorum && <p className="text-red-400 text-sm mt-1">{validationErrors.quorum}</p>}
             </div>
 
             <div>
@@ -651,16 +650,13 @@ const CreateDAO = () => {
                   })
                 }
               />
-              {validationErrors.minTokens && (
-                <p className="text-red-400 text-sm mt-1">{validationErrors.minTokens}</p>
-              )}
+              {validationErrors.minTokens && <p className="text-red-400 text-sm mt-1">{validationErrors.minTokens}</p>}
             </div>
 
             <div className="p-4 glass-card rounded-lg mt-6">
               <p className="text-sm text-daoship-text-gray">
-                <span className="text-daoship-blue font-medium">Tip:</span> A
-                higher quorum percentage ensures more community participation,
-                but may make it harder to pass proposals.
+                <span className="text-daoship-blue font-medium">Tip:</span> A higher quorum percentage ensures more
+                community participation, but may make it harder to pass proposals.
               </p>
             </div>
           </div>
@@ -721,10 +717,12 @@ const CreateDAO = () => {
                       name="tokenStrategy"
                       value="fixed"
                       checked={formData.tokenStrategy === "fixed"}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        tokenStrategy: e.target.value
-                      })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          tokenStrategy: e.target.value,
+                        })
+                      }
                       className="form-radio text-daoship-blue"
                     />
                     <span className="text-white">Fixed Supply</span>
@@ -735,10 +733,12 @@ const CreateDAO = () => {
                       name="tokenStrategy"
                       value="dynamic"
                       checked={formData.tokenStrategy === "dynamic"}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        tokenStrategy: e.target.value
-                      })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          tokenStrategy: e.target.value,
+                        })
+                      }
                       className="form-radio text-daoship-blue"
                     />
                     <span className="text-white">Dynamic Supply</span>
@@ -753,10 +753,12 @@ const CreateDAO = () => {
                         name="tokenSupply"
                         type="number"
                         value={formData.tokenSupply}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          tokenSupply: parseInt(e.target.value) || 0
-                        })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            tokenSupply: parseInt(e.target.value) || 0,
+                          })
+                        }
                         required
                       />
                       {validationErrors.tokenSupply && (
@@ -768,56 +770,78 @@ const CreateDAO = () => {
                       <h5 className="text-white font-medium mb-2">Token Allocation</h5>
                       <div className="space-y-3">
                         <div>
-                          <label className="text-sm text-white/70">Initial Distribution ({formData.tokenAllocation.initialDistribution}%)</label>
+                          <label className="text-sm text-white/70">
+                            Initial Distribution ({formData.tokenAllocation.initialDistribution}%)
+                          </label>
                           <GlassmorphicSlider
                             min={0}
                             max={100}
                             value={formData.tokenAllocation.initialDistribution}
-                            onChange={(value) => setFormData({
-                              ...formData,
-                              tokenAllocation: {
-                                ...formData.tokenAllocation,
-                                initialDistribution: value
-                              }
-                            })}
-                            unit="%" label={""} />
+                            onChange={(value) =>
+                              setFormData({
+                                ...formData,
+                                tokenAllocation: {
+                                  ...formData.tokenAllocation,
+                                  initialDistribution: value,
+                                },
+                              })
+                            }
+                            unit="%"
+                            label={""}
+                          />
                         </div>
                         <div>
-                          <label className="text-sm text-white/70">Future Contributors ({formData.tokenAllocation.futureContributors}%)</label>
+                          <label className="text-sm text-white/70">
+                            Future Contributors ({formData.tokenAllocation.futureContributors}%)
+                          </label>
                           <GlassmorphicSlider
                             min={0}
                             max={100}
                             value={formData.tokenAllocation.futureContributors}
-                            onChange={(value) => setFormData({
-                              ...formData,
-                              tokenAllocation: {
-                                ...formData.tokenAllocation,
-                                futureContributors: value
-                              }
-                            })}
-                            unit="%" label={""} />
+                            onChange={(value) =>
+                              setFormData({
+                                ...formData,
+                                tokenAllocation: {
+                                  ...formData.tokenAllocation,
+                                  futureContributors: value,
+                                },
+                              })
+                            }
+                            unit="%"
+                            label={""}
+                          />
                         </div>
                         <div>
-                          <label className="text-sm text-white/70">DAO Treasury ({formData.tokenAllocation.treasury}%)</label>
+                          <label className="text-sm text-white/70">
+                            DAO Treasury ({formData.tokenAllocation.treasury}%)
+                          </label>
                           <GlassmorphicSlider
                             min={0}
                             max={100}
                             value={formData.tokenAllocation.treasury}
-                            onChange={(value) => setFormData({
-                              ...formData,
-                              tokenAllocation: {
-                                ...formData.tokenAllocation,
-                                treasury: value
-                              }
-                            })}
-                            unit="%" label={""} />
+                            onChange={(value) =>
+                              setFormData({
+                                ...formData,
+                                tokenAllocation: {
+                                  ...formData.tokenAllocation,
+                                  treasury: value,
+                                },
+                              })
+                            }
+                            unit="%"
+                            label={""}
+                          />
                         </div>
                       </div>
                       {validationErrors.tokenAllocation && (
                         <p className="text-red-400 text-sm mt-2">{validationErrors.tokenAllocation}</p>
                       )}
                       <div className="mt-2 text-sm text-white/60">
-                        Total: {formData.tokenAllocation.initialDistribution + formData.tokenAllocation.futureContributors + formData.tokenAllocation.treasury}%
+                        Total:{" "}
+                        {formData.tokenAllocation.initialDistribution +
+                          formData.tokenAllocation.futureContributors +
+                          formData.tokenAllocation.treasury}
+                        %
                       </div>
                     </div>
                   </div>
@@ -840,52 +864,60 @@ const CreateDAO = () => {
                   name="initialDistribution.commits"
                   type="number"
                   value={formData.initialDistribution.commits}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    initialDistribution: {
-                      ...formData.initialDistribution,
-                      commits: parseInt(e.target.value) || 0
-                    }
-                  })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      initialDistribution: {
+                        ...formData.initialDistribution,
+                        commits: parseInt(e.target.value) || 0,
+                      },
+                    })
+                  }
                 />
                 <GlassmorphicInput
                   label="Tokens per PR"
                   name="initialDistribution.pullRequests"
                   type="number"
                   value={formData.initialDistribution.pullRequests}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    initialDistribution: {
-                      ...formData.initialDistribution,
-                      pullRequests: parseInt(e.target.value) || 0
-                    }
-                  })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      initialDistribution: {
+                        ...formData.initialDistribution,
+                        pullRequests: parseInt(e.target.value) || 0,
+                      },
+                    })
+                  }
                 />
                 <GlassmorphicInput
                   label="Tokens per Issue"
                   name="initialDistribution.issues"
                   type="number"
                   value={formData.initialDistribution.issues}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    initialDistribution: {
-                      ...formData.initialDistribution,
-                      issues: parseInt(e.target.value) || 0
-                    }
-                  })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      initialDistribution: {
+                        ...formData.initialDistribution,
+                        issues: parseInt(e.target.value) || 0,
+                      },
+                    })
+                  }
                 />
                 <GlassmorphicInput
                   label="Tokens per Code Review"
                   name="initialDistribution.codeReviews"
                   type="number"
                   value={formData.initialDistribution.codeReviews}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    initialDistribution: {
-                      ...formData.initialDistribution,
-                      codeReviews: parseInt(e.target.value) || 0
-                    }
-                  })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      initialDistribution: {
+                        ...formData.initialDistribution,
+                        codeReviews: parseInt(e.target.value) || 0,
+                      },
+                    })
+                  }
                 />
               </div>
             </div>
@@ -957,10 +989,12 @@ const CreateDAO = () => {
                     name="vestingPeriod"
                     type="number"
                     value={formData.vestingPeriod}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      vestingPeriod: parseInt(e.target.value) || 0
-                    })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        vestingPeriod: parseInt(e.target.value) || 0,
+                      })
+                    }
                   />
                   {validationErrors.vestingPeriod && (
                     <p className="text-red-400 text-sm mt-1">{validationErrors.vestingPeriod}</p>
@@ -972,10 +1006,12 @@ const CreateDAO = () => {
                     name="minContributionForVoting"
                     type="number"
                     value={formData.minContributionForVoting}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      minContributionForVoting: parseInt(e.target.value) || 0
-                    })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        minContributionForVoting: parseInt(e.target.value) || 0,
+                      })
+                    }
                   />
                   {validationErrors.minContributionForVoting && (
                     <p className="text-red-400 text-sm mt-1">{validationErrors.minContributionForVoting}</p>
@@ -986,8 +1022,8 @@ const CreateDAO = () => {
 
             <div className="p-4 glass-card rounded-lg mt-6">
               <p className="text-sm text-daoship-text-gray">
-                <span className="text-daoship-blue font-medium">Note:</span>{" "}
-                Tokens will be distributed based on GitHub contributions. New contributors will need to complete the vesting period before they can vote.
+                <span className="text-daoship-blue font-medium">Note:</span> Tokens will be distributed based on GitHub
+                contributions. New contributors will need to complete the vesting period before they can vote.
               </p>
             </div>
           </div>
@@ -998,9 +1034,7 @@ const CreateDAO = () => {
           <div className="space-y-6">
             <GlassmorphicCard className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-white">
-                  Repository Collaborators
-                </h3>
+                <h3 className="text-xl font-semibold text-white">Repository Collaborators</h3>
                 <GradientButton
                   type="button"
                   variant="secondary"
@@ -1031,7 +1065,9 @@ const CreateDAO = () => {
               {collaborators.length === 0 && !collaboratorsLoading && !collaboratorsError && formData.githubRepo && (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 text-white/30 mx-auto mb-4" />
-                  <p className="text-white/60">No collaborators found for the provided repository or click "Refresh" to fetch them.</p>
+                  <p className="text-white/60">
+                    No collaborators found for the provided repository or click "Refresh" to fetch them.
+                  </p>
                   <p className="text-sm text-white/40 mt-2">
                     Ensure the repository is public or your GitHub token has the necessary permissions.
                   </p>
@@ -1041,8 +1077,8 @@ const CreateDAO = () => {
               {collaborators.length > 0 && (
                 <div className="space-y-4">
                   <p className="text-sm text-white/70 mb-4">
-                    Found {collaborators.length} collaborator{collaborators.length !== 1 ? 's' : ''} for your repository.
-                    Send invitations to include them in your DAO.
+                    Found {collaborators.length} collaborator{collaborators.length !== 1 ? "s" : ""} for your
+                    repository. Send invitations to include them in your DAO.
                   </p>
 
                   <div className="grid gap-4">
@@ -1059,14 +1095,16 @@ const CreateDAO = () => {
                           />
                           <div>
                             <h4 className="text-white font-medium">{collaborator.login}</h4>
-                            {collaborator.name && (
-                              <p className="text-sm text-white/60">{collaborator.name}</p>
-                            )}
+                            {collaborator.name && <p className="text-sm text-white/60">{collaborator.name}</p>}
                             <div className="flex items-center space-x-2 mt-1">
                               <span className="text-xs px-2 py-1 bg-white/10 rounded-full text-white/70">
-                                {collaborator.role || collaborator.permissions?.admin ? 'Admin' :
-                                  collaborator.permissions?.maintain ? 'Maintainer' :
-                                    collaborator.permissions?.push ? 'Write' : 'Read'}
+                                {collaborator.role || collaborator.permissions?.admin
+                                  ? "Admin"
+                                  : collaborator.permissions?.maintain
+                                    ? "Maintainer"
+                                    : collaborator.permissions?.push
+                                      ? "Write"
+                                      : "Read"}
                               </span>
                               {collaborator.site_admin && (
                                 <span className="text-xs px-2 py-1 bg-yellow-500/20 rounded-full text-yellow-400">
@@ -1114,9 +1152,9 @@ const CreateDAO = () => {
 
             <div className="p-4 glass-card rounded-lg">
               <p className="text-sm text-daoship-text-gray">
-                <span className="text-daoship-blue font-medium">Info:</span>{" "}
-                Invited collaborators will receive an email notification with instructions to claim their DAO tokens.
-                They can accept the invitation and participate in governance once the DAO is deployed.
+                <span className="text-daoship-blue font-medium">Info:</span> Invited collaborators will receive an email
+                notification with instructions to claim their DAO tokens. They can accept the invitation and participate
+                in governance once the DAO is deployed.
               </p>
             </div>
           </div>
@@ -1126,17 +1164,13 @@ const CreateDAO = () => {
         return (
           <div className="space-y-6">
             <GlassmorphicCard className="p-6">
-              <h3 className="text-xl font-semibold text-white mb-4">
-                Review DAO Details
-              </h3>
+              <h3 className="text-xl font-semibold text-white mb-4">Review DAO Details</h3>
 
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                   <div>
                     <p className="text-sm text-white/60">DAO Name</p>
-                    <p className="text-white">
-                      {formData.name || "Not specified"}
-                    </p>
+                    <p className="text-white">{formData.name || "Not specified"}</p>
                   </div>
 
                   <div>
@@ -1170,48 +1204,34 @@ const CreateDAO = () => {
 
                   <div>
                     <p className="text-sm text-white/60">Minimum Tokens</p>
-                    <p className="text-white">
-                      {formData.minTokens.toLocaleString()}
-                    </p>
+                    <p className="text-white">{formData.minTokens.toLocaleString()}</p>
                   </div>
 
                   <div>
                     <p className="text-sm text-white/60">GitHub Repository</p>
-                    <p className="text-white">
-                      {formData.githubRepo || "Not specified"}
-                    </p>
+                    <p className="text-white">{formData.githubRepo || "Not specified"}</p>
                   </div>
 
                   <div>
                     <p className="text-sm text-white/60">Vesting Period</p>
-                    <p className="text-white">
-                      {formData.vestingPeriod} days
-                    </p>
+                    <p className="text-white">{formData.vestingPeriod} days</p>
                   </div>
 
                   <div>
                     <p className="text-sm text-white/60">Min. Tokens for Voting</p>
-                    <p className="text-white">
-                      {formData.minContributionForVoting.toLocaleString()}
-                    </p>
+                    <p className="text-white">{formData.minContributionForVoting.toLocaleString()}</p>
                   </div>
                 </div>
 
                 <div>
                   <p className="text-sm text-white/60">Description</p>
-                  <p className="text-white">
-                    {formData.description || "No description provided"}
-                  </p>
+                  <p className="text-white">{formData.description || "No description provided"}</p>
                 </div>
 
                 {formData.logoPreview && (
                   <div>
                     <p className="text-sm text-white/60">Logo</p>
-                    <img
-                      src={formData.logoPreview}
-                      alt="DAO Logo"
-                      className="w-16 h-16 rounded-lg mt-2 object-cover"
-                    />
+                    <img src={formData.logoPreview} alt="DAO Logo" className="w-16 h-16 rounded-lg mt-2 object-cover" />
                   </div>
                 )}
 
@@ -1220,11 +1240,15 @@ const CreateDAO = () => {
                     <p className="text-sm text-white/60">Invited Collaborators</p>
                     <div className="mt-2">
                       <p className="text-white">
-                        {formData.invitedCollaborators.length} collaborator{formData.invitedCollaborators.length !== 1 ? 's' : ''} invited
+                        {formData.invitedCollaborators.length} collaborator
+                        {formData.invitedCollaborators.length !== 1 ? "s" : ""} invited
                       </p>
                       <div className="mt-2 space-y-1">
                         {formData.invitedCollaborators.slice(0, 5).map((username, index) => (
-                          <span key={index} className="inline-block text-xs px-2 py-1 bg-white/10 rounded-full text-white/70 mr-2 mb-1">
+                          <span
+                            key={index}
+                            className="inline-block text-xs px-2 py-1 bg-white/10 rounded-full text-white/70 mr-2 mb-1"
+                          >
                             @{username}
                           </span>
                         ))}
@@ -1242,11 +1266,8 @@ const CreateDAO = () => {
 
             <div className="p-4 glass-card rounded-lg mt-2">
               <p className="text-sm text-daoship-text-gray">
-                <span className="text-daoship-mint font-medium">
-                  Ready to launch!
-                </span>{" "}
-                By submitting, you'll deploy this DAO to the Avalanche
-                blockchain. This action is irreversible.
+                <span className="text-daoship-mint font-medium">Ready to launch!</span> By submitting, you'll deploy
+                this DAO to the Avalanche blockchain. This action is irreversible.
               </p>
             </div>
           </div>
@@ -1262,34 +1283,21 @@ const CreateDAO = () => {
 
       <main className="pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-3xl">
-          <h1 className="text-3xl md:text-4xl font-bold mb-10 text-center gradient-text">
-            Create Your DAO
-          </h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-10 text-center gradient-text">Create Your DAO</h1>
 
           {/* Steps Progress */}
           <div className="mb-10">
             <div className="flex justify-between relative">
               {steps.map((step, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col items-center relative z-10"
-                >
+                <div key={index} className="flex flex-col items-center relative z-10">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      index <= currentStep
-                        ? "bg-gradient-primary"
-                        : "bg-white/10"
+                      index <= currentStep ? "bg-gradient-primary" : "bg-white/10"
                     }`}
                   >
                     <span className="text-white font-medium">{index + 1}</span>
                   </div>
-                  <p
-                    className={`text-xs mt-2 ${
-                      index <= currentStep ? "text-white" : "text-white/50"
-                    }`}
-                  >
-                    {step}
-                  </p>
+                  <p className={`text-xs mt-2 ${index <= currentStep ? "text-white" : "text-white/50"}`}>{step}</p>
                 </div>
               ))}
 
@@ -1325,12 +1333,7 @@ const CreateDAO = () => {
                     Continue
                   </GradientButton>
                 ) : (
-                  <GradientButton
-                    type="submit"
-                    disabled={isSubmitting}
-                    variant="success"
-                    glowEffect
-                  >
+                  <GradientButton type="submit" disabled={isSubmitting} variant="success" glowEffect>
                     {isSubmitting ? "Creating DAO..." : "Create DAO"}
                   </GradientButton>
                 )}
