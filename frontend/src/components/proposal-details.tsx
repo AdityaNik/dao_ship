@@ -38,7 +38,6 @@ const ProposalDetails: React.FC<ProposalDetailsProps> = ({
   const { address } = useAccount();
   const [hasVoted, setHasVoted] = useState(false);
   const [voteCount, setVoteCount] = useState({ yes: 0, no: 0 });
-  const writeContract = useWriteContract();
 
   useEffect(() => {
     // Calculate vote counts
