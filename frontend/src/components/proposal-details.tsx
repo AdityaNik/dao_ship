@@ -7,6 +7,10 @@ import { useWallet } from "@/hooks/use-wallet";
 import { Vote, Check, X } from "lucide-react";
 import GlassmorphicCard from "@/components/ui/glassmorphic-card";
 import GradientButton from "@/components/ui/gradient-button";
+import { useAccount, useWriteContract } from "wagmi";
+import { daoShipContract } from "@/contracts/contract";
+import { avalancheFuji } from "viem/chains";
+import { parseEther } from "viem";
 
 interface ProposalDetailsProps {
   proposal: {
@@ -29,9 +33,11 @@ const ProposalDetails: React.FC<ProposalDetailsProps> = ({
   totalMembers,
 }) => {
   const { toast } = useToast();
-  const { isConnected, walletAddress } = useWallet();
+  // const { isConnected, walletAddress } = useWallet();
+  const { address } = useAccount();
   const [hasVoted, setHasVoted] = useState(false);
   const [voteCount, setVoteCount] = useState({ yes: 0, no: 0 });
+  const [writeContract] = useWriteContract();
 
   useEffect(() => {
     // Calculate vote counts
@@ -40,11 +46,11 @@ const ProposalDetails: React.FC<ProposalDetailsProps> = ({
     setVoteCount({ yes: yesVotes, no: noVotes });
 
     // Check if current user has voted
-    setHasVoted(proposal.votes.some((v) => v.voter === walletAddress));
-  }, [proposal, walletAddress]);
+    setHasVoted(proposal.votes.some((v) => v.voter === address));
+  }, [proposal, address]);
 
   const handleVote = async (vote: "yes" | "no") => {
-    if (!isConnected) {
+    if (!address) {
       toast({
         title: "Wallet Not Connected",
         description: "Please connect your wallet to vote",
@@ -53,12 +59,21 @@ const ProposalDetails: React.FC<ProposalDetailsProps> = ({
       return;
     }
 
+    writeContract({
+      address: proposal.dao_address,
+      abi: daoShipContract.abi,
+      functionName: "stakeAndVote",
+      args: [proposal._id, parseEther("1"), vote === "yes"],
+      chain: avalancheFuji,
+      account: address
+    })
+
     try {
       const response = await fetch(`/api/dao/proposals/${proposal._id}/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          voter: walletAddress,
+          voter: address,
           vote,
         }),
       });

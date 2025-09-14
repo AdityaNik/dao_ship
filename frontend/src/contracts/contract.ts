@@ -1,5 +1,5 @@
 export const factoryContract = {
-    address: '0x7a429185A9b8f544f6c401bB882f99AEFFA4E77b',
+    address: '0x7b59548d91c750A457f80BB736A9f1B9e28C1B0b',
     abi: [
         {
             "anonymous": false,

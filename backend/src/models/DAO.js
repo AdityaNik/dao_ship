@@ -116,6 +116,9 @@ const daoSchema = new mongoose.Schema({
       },
     },
   ],
+  daoId: {
+    type: Number
+  },
   isActive: {
     type: Boolean,
     default: true,

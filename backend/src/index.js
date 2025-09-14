@@ -15,11 +15,40 @@ app.use(express.json());
 
 // MongoDB Connection
 mongoose
-  .connect("mongodb+srv://vedantintiproject:Vedant1@cluster0.cndieto.mongodb.net/mydb?retryWrites=true&w=majority" || "mongodb://localhost:27017/dao-creator", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+  .connect(
+    "mongodb+srv://vedantintiproject:Vedant1@cluster0.cndieto.mongodb.net/mydb?retryWrites=true&w=majority" ||
+      "mongodb://localhost:27017/dao-creator",
+    {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    },
+  )
+  .then(async () => {
+    console.log("Connected to MongoDB");
+
+    // Clean up old indexes that might cause conflicts
+    try {
+      const db = mongoose.connection.db;
+      const collections = await db.listCollections().toArray();
+
+      // Check if daos collection exists and clean up old daoId index
+      const daosCollection = collections.find((col) => col.name === "daos");
+      if (daosCollection) {
+        try {
+          const indexes = await db.collection("daos").indexes();
+          const daoIdIndex = indexes.find((index) => index.name === "daoId_1");
+          if (daoIdIndex) {
+            await db.collection("daos").dropIndex("daoId_1");
+            console.log("Dropped old daoId_1 index from daos collection");
+          }
+        } catch (indexError) {
+          console.log("No old daoId index to clean up or already cleaned");
+        }
+      }
+    } catch (cleanupError) {
+      console.log("Index cleanup completed or not needed");
+    }
   })
-  .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
 // Routes

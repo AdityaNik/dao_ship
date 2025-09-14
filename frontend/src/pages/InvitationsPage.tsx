@@ -1,15 +1,15 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Mail } from "lucide-react";
+import { useAccount } from "wagmi";
 import { useGitHubAuth } from "@/hooks/useGitHubAuth";
 import { useInvitations } from "@/hooks/useInvitations";
-import { useWallet } from "@/hooks/use-wallet";
 import InvitationCard from "@/components/InvitationCard";
 
 const InvitationsPage = () => {
   const navigate = useNavigate();
   const { user, githubUsername, loading: authLoading } = useGitHubAuth();
-  const { walletAddress } = useWallet();
+  const { address: walletAddress, isConnected } = useAccount();
   const { invitations, loading, error, acceptInvitation, declineInvitation } = useInvitations(githubUsername);
 
   console.log("InvitationsPage Debug:", {
@@ -17,6 +17,7 @@ const InvitationsPage = () => {
     githubUsername,
     loading,
     walletAddress,
+    isConnected,
     invitations: invitations?.length,
   });
 
@@ -42,32 +43,9 @@ const InvitationsPage = () => {
           <button onClick={() => navigate(-1)} className="p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div>
-            <h1 className="text-3xl font-bold text-white">DAO Invitations</h1>
-            <p className="text-gray-400">Welcome @{githubUsername}!</p>
-          </div>
         </div>
 
         <div className="max-w-4xl mx-auto">
-          <div className="mb-4 p-3 bg-gray-800 rounded-lg text-xs">
-            <p className="text-gray-400">
-              Debug: Username="{githubUsername}", Loading={loading.toString()}, Count={invitations?.length || 0}
-            </p>
-            <p className="text-yellow-400 mt-1">
-              🔍 Expected: "aniketwarule" | Current: "{githubUsername}" | Match:{" "}
-              {githubUsername === "aniketwarule" ? "✅" : "❌"}
-            </p>
-            <p className="text-green-400 mt-1">
-              � Wallet:{" "}
-              {walletAddress
-                ? `Connected (${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)})`
-                : "Not Connected"}
-            </p>
-            <p className="text-blue-400 mt-1">
-              💡 {!walletAddress ? "Connect wallet to accept invitations" : "Ready to accept invitations!"}
-            </p>
-          </div>
-
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
@@ -91,9 +69,15 @@ const InvitationsPage = () => {
                 <InvitationCard
                   key={invitation._id}
                   invitation={invitation}
-                  onAccept={(invitationId, walletAddr) => acceptInvitation(invitationId, walletAddr)}
+                  onAccept={(invitationId, walletAddr) => {
+                    console.log("Accepting invitation:", {
+                      invitationId,
+                      walletAddr,
+                      currentWalletAddress: walletAddress,
+                    });
+                    return acceptInvitation(invitationId, walletAddr);
+                  }}
                   onDecline={() => declineInvitation(invitation._id)}
-                  walletAddress={walletAddress}
                   isLoading={loading}
                 />
               ))}
