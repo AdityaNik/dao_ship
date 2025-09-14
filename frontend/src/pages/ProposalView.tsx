@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Users, Clock, CheckCircle, XCircle, CircleDashed, Send, AlertCircle } from "lucide-react";
+
+import { ArrowLeft, Users, Clock, CheckCircle, XCircle, CircleDashed, Send, AlertCircle, Copy } from "lucide-react";
 import { useAccount, useWriteContract } from "wagmi";
 import { useGitHubAuth } from "@/hooks/useGitHubAuth";
 import Navigation from "@/components/navigation";
@@ -28,7 +29,7 @@ const ProposalView = () => {
   const [timeLeft, setTimeLeft] = useState("");
   const { toast } = useToast();
 
-  const writeContract = useWriteContract();
+  const {writeContract} = useWriteContract();
   const { address } = useAccount();
 
   useEffect(() => {
@@ -144,11 +145,11 @@ const ProposalView = () => {
       };
 
       try {
-        writeContract.writeContract({
+        writeContract({
           address: proposal.contractAddress as `0x${string}`,
           abi: daoShipContract.abi,
           functionName: "stakeAndVote",
-          args: [proposal._id, parseEther("10"), voteType === "yes"],
+          args: [1, parseEther("10"), voteType === "yes"],
           chain: avalancheFuji,
           account: address as `0x${string}`
         })
@@ -312,10 +313,34 @@ const ProposalView = () => {
                     {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
                   </span>
                 </div>
-                <div className="mt-2 text-daoship-text-gray">
-                  <span>
-                    Created by: {proposal.creator?.username || proposal.creator?.walletAddress || "Anonymous"}
-                  </span>
+                <div className="mt-2 text-daoship-text-gray space-y-1">
+                  <div>
+                    <span>
+                      Created by: {proposal.creator?.username || proposal.creator?.walletAddress || "Anonymous"}
+                    </span>
+                  </div>
+                  {proposal.contractAddress && (
+                    <div className="flex items-center gap-2">
+                      <span>Contract Address:</span>
+                      <div className="flex items-center gap-2 bg-white/5 rounded px-2 py-1 border border-white/10">
+                        <span className="font-mono text-sm text-daoship-primary">{proposal.contractAddress}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(proposal.contractAddress);
+                            toast({
+                              title: "Copied!",
+                              description: "Contract address copied to clipboard",
+                              variant: "default",
+                            });
+                          }}
+                          className="text-daoship-text-gray hover:text-white transition-colors"
+                          title="Copy contract address"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
