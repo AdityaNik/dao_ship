@@ -200,9 +200,23 @@ router.post("/:daoId/proposals", async (req, res) => {
     const { daoId } = req.params;
     const { title, description, creator, startTime, endTime } = req.body;
 
+    // Fetch the DAO to get its contract address
+    const dao = await DAO.findById(daoId);
+    if (!dao) {
+      return res.status(404).json({ message: "DAO not found" });
+    }
+
+    console.log("Creating proposal for DAO via DAO route:", {
+      daoId,
+      contractAddress: dao.contractAddress,
+      title,
+      creator,
+    });
+
     // Create proposal on Algorand
     // const proposalId = await createProposal({
     //   dao: daoId,
+    //   contractAddress: dao.contractAddress,
     //   title,
     //   description,
     //   startTime,
@@ -216,6 +230,7 @@ router.post("/:daoId/proposals", async (req, res) => {
       title,
       description,
       dao: daoId,
+      contractAddress: dao.contractAddress,
       creator,
       startTime,
       endTime,
@@ -223,8 +238,10 @@ router.post("/:daoId/proposals", async (req, res) => {
     });
 
     await proposal.save();
+    console.log("Proposal created via DAO route:", proposal._id);
     res.status(201).json(proposal);
   } catch (error) {
+    console.error("Error creating proposal via DAO route:", error);
     res.status(500).json({ message: error.message });
   }
 });

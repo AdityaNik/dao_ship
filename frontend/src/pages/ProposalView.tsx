@@ -1,30 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  ArrowLeft,
-  Users,
-  Clock,
-  CheckCircle,
-  XCircle,
-  CircleDashed,
-  Send,
-  AlertCircle,
-} from "lucide-react";
+import { ArrowLeft, Users, Clock, CheckCircle, XCircle, CircleDashed, Send, AlertCircle } from "lucide-react";
+import { useAccount } from "wagmi";
+import { useGitHubAuth } from "@/hooks/useGitHubAuth";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
 import GlassmorphicCard from "@/components/ui/glassmorphic-card";
 import GradientButton from "@/components/ui/gradient-button";
-import {
-  getProposal,
-  voteOnProposal,
-} from "@/lib/api";
+import { getProposal, voteOnProposal } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 
 const ProposalView = () => {
   const { daoId, proposalId } = useParams();
   const navigate = useNavigate();
+  const { address: walletAddress, isConnected } = useAccount();
+  const { githubUsername } = useGitHubAuth();
   const [proposal, setProposal] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
@@ -37,7 +29,7 @@ const ProposalView = () => {
     if (daoId && proposalId) {
       fetchProposalData();
     }
-  }, [daoId, proposalId]);
+  }, [daoId, proposalId, walletAddress, githubUsername]);
 
   useEffect(() => {
     if (proposal && proposal.status === "active") {
@@ -56,8 +48,16 @@ const ProposalView = () => {
       // setComments(commentsData);
 
       // Check if current user has already voted
-      // This would need to be implemented based on your auth system
-      // setUserVote(hasUserVoted());
+      if (proposalData.votes && (walletAddress || githubUsername)) {
+        const existingVote = proposalData.votes.find(
+          (vote) =>
+            (walletAddress && vote.walletAddress?.toLowerCase() === walletAddress.toLowerCase()) ||
+            (githubUsername && vote.githubUsername?.toLowerCase() === githubUsername.toLowerCase()),
+        );
+        if (existingVote) {
+          setUserVote(existingVote.vote);
+        }
+      }
 
       updateTimeLeft();
     } catch (error) {
@@ -96,6 +96,7 @@ const ProposalView = () => {
   };
 
   const handleVote = async (voteType) => {
+    // Check if user has already voted
     if (userVote) {
       toast({
         title: "Already voted",
@@ -105,28 +106,68 @@ const ProposalView = () => {
       return;
     }
 
+    // Check if wallet is connected
+    if (!isConnected || !walletAddress) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to vote on this proposal.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if GitHub is authenticated
+    if (!githubUsername) {
+      toast({
+        title: "GitHub not connected",
+        description: "Please log in with GitHub to vote on this proposal.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      await voteOnProposal(daoId, proposalId, voteType);
+      console.log("Casting vote:", { voteType, walletAddress, githubUsername });
+
+      const voteData = {
+        vote: voteType,
+        walletAddress,
+        githubUsername,
+        votingPower: 1,
+      };
+
+      const result = await voteOnProposal(daoId, proposalId, voteData);
       setUserVote(voteType);
 
       // Update proposal data to reflect new vote
-      const updatedProposal = { ...proposal };
-      if (voteType === "yes") updatedProposal.yesVotes++;
-      else if (voteType === "no") updatedProposal.noVotes++;
-      else if (voteType === "abstain") updatedProposal.abstainVotes++;
-
-      setProposal(updatedProposal);
+      if (result.voteStatus) {
+        const updatedProposal = {
+          ...proposal,
+          yesVotes: result.voteStatus.yesVotes,
+          noVotes: result.voteStatus.noVotes,
+          abstainVotes: result.voteStatus.abstainVotes,
+        };
+        setProposal(updatedProposal);
+      } else {
+        // Fallback to manual increment
+        const updatedProposal = { ...proposal };
+        if (voteType === "yes") updatedProposal.yesVotes++;
+        else if (voteType === "no") updatedProposal.noVotes++;
+        else if (voteType === "abstain") updatedProposal.abstainVotes++;
+        setProposal(updatedProposal);
+      }
 
       toast({
-        title: "Vote cast",
+        title: "Vote cast successfully!",
         description: `You have successfully voted ${voteType} on this proposal.`,
         variant: "default",
       });
     } catch (error) {
       console.error("Error casting vote:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to cast your vote";
       toast({
         title: "Error",
-        description: "Failed to cast your vote. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -173,12 +214,8 @@ const ProposalView = () => {
     return (
       <div className="min-h-screen bg-gradient-background flex items-center justify-center">
         <GlassmorphicCard className="p-8 max-w-md text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">
-            Proposal Not Found
-          </h2>
-          <p className="text-daoship-text-gray mb-6">
-            We couldn't find the proposal you're looking for.
-          </p>
+          <h2 className="text-2xl font-bold text-white mb-4">Proposal Not Found</h2>
+          <p className="text-daoship-text-gray mb-6">We couldn't find the proposal you're looking for.</p>
           <Link to={`/dao/${daoId}`}>
             <GradientButton>Return to DAO</GradientButton>
           </Link>
@@ -230,11 +267,7 @@ const ProposalView = () => {
             </button>
           </motion.div>
 
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
+          <motion.div variants={containerVariants} initial="hidden" animate="visible">
             {/* Header */}
             <motion.div
               variants={itemVariants}
@@ -242,28 +275,22 @@ const ProposalView = () => {
             >
               <div className="flex-1">
                 <div className="flex items-center gap-4 flex-wrap">
-                  <h1 className="text-3xl md:text-4xl font-bold gradient-text">
-                    {proposal.title}
-                  </h1>
+                  <h1 className="text-3xl md:text-4xl font-bold gradient-text">{proposal.title}</h1>
                   <span
                     className={`px-3 py-1 rounded-full text-sm ${
                       proposal.status === "active"
                         ? "bg-green-500/20 text-green-400"
                         : proposal.status === "passed"
-                        ? "bg-blue-500/20 text-blue-400"
-                        : "bg-red-500/20 text-red-400"
+                          ? "bg-blue-500/20 text-blue-400"
+                          : "bg-red-500/20 text-red-400"
                     }`}
                   >
-                    {proposal.status.charAt(0).toUpperCase() +
-                      proposal.status.slice(1)}
+                    {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
                   </span>
                 </div>
                 <div className="mt-2 text-daoship-text-gray">
                   <span>
-                    Created by:{" "}
-                    {proposal.creator?.username ||
-                      proposal.creator?.walletAddress ||
-                      "Anonymous"}
+                    Created by: {proposal.creator?.username || proposal.creator?.walletAddress || "Anonymous"}
                   </span>
                 </div>
               </div>
@@ -274,9 +301,7 @@ const ProposalView = () => {
               {/* Main Content */}
               <motion.div variants={itemVariants} className="lg:col-span-2">
                 <GlassmorphicCard className="p-6 mb-6">
-                  <h2 className="text-xl font-bold text-white mb-4">
-                    Description
-                  </h2>
+                  <h2 className="text-xl font-bold text-white mb-4">Description</h2>
                   <div className="text-daoship-text-gray prose prose-invert max-w-none">
                     <ReactMarkdown>{proposal.description}</ReactMarkdown>
                   </div>
@@ -285,9 +310,7 @@ const ProposalView = () => {
                 {/* Comments Section */}
                 <motion.div variants={itemVariants} className="mt-6">
                   <GlassmorphicCard className="p-6">
-                    <h2 className="text-xl font-bold text-white mb-4">
-                      Discussion
-                    </h2>
+                    <h2 className="text-xl font-bold text-white mb-4">Discussion</h2>
 
                     <div className="mb-6">
                       <div className="flex gap-4">
@@ -322,32 +345,23 @@ const ProposalView = () => {
                             <div className="flex items-center gap-3 mb-2">
                               <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center">
                                 <span className="text-white text-xs font-medium">
-                                  {comment.user?.username
-                                    ?.charAt(0)
-                                    .toUpperCase() || "?"}
+                                  {comment.user?.username?.charAt(0).toUpperCase() || "?"}
                                 </span>
                               </div>
                               <div>
-                                <h4 className="text-white font-medium">
-                                  {comment.user?.username || "Anonymous"}
-                                </h4>
+                                <h4 className="text-white font-medium">{comment.user?.username || "Anonymous"}</h4>
                                 <p className="text-daoship-text-gray text-xs">
                                   {new Date(comment.createdAt).toLocaleString()}
                                 </p>
                               </div>
                             </div>
-                            <p className="text-daoship-text-gray ml-11">
-                              {comment.content}
-                            </p>
+                            <p className="text-daoship-text-gray ml-11">{comment.content}</p>
                           </motion.div>
                         ))
                       ) : (
                         <div className="text-center text-daoship-text-gray py-6">
                           <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                          <p>
-                            No comments yet. Be the first to share your
-                            thoughts!
-                          </p>
+                          <p>No comments yet. Be the first to share your thoughts!</p>
                         </div>
                       )}
                     </div>
@@ -359,26 +373,18 @@ const ProposalView = () => {
               <motion.div variants={itemVariants} className="space-y-6">
                 {/* Voting Status */}
                 <GlassmorphicCard className="p-6">
-                  <h3 className="text-lg font-medium text-white mb-4">
-                    Voting Status
-                  </h3>
+                  <h3 className="text-lg font-medium text-white mb-4">Voting Status</h3>
 
                   <div className="space-y-6">
                     {/* Timeframe */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-daoship-text-gray">
-                          Start Date
-                        </span>
-                        <span className="text-white">
-                          {new Date(proposal.startTime).toLocaleDateString()}
-                        </span>
+                        <span className="text-daoship-text-gray">Start Date</span>
+                        <span className="text-white">{new Date(proposal.startTime).toLocaleDateString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-daoship-text-gray">End Date</span>
-                        <span className="text-white">
-                          {new Date(proposal.endTime).toLocaleDateString()}
-                        </span>
+                        <span className="text-white">{new Date(proposal.endTime).toLocaleDateString()}</span>
                       </div>
 
                       {proposal.status === "active" && (
@@ -414,8 +420,7 @@ const ProposalView = () => {
                             Yes
                           </span>
                           <span className="text-white">
-                            {proposal.yesVotes} (
-                            {calculatePercentage(proposal.yesVotes).toFixed(1)}
+                            {proposal.yesVotes} ({calculatePercentage(proposal.yesVotes).toFixed(1)}
                             %)
                           </span>
                         </div>
@@ -429,9 +434,7 @@ const ProposalView = () => {
                             className="h-full bg-green-500 rounded-full"
                             initial={{ width: 0 }}
                             animate={{
-                              width: `${calculatePercentage(
-                                proposal.yesVotes
-                              )}%`,
+                              width: `${calculatePercentage(proposal.yesVotes)}%`,
                             }}
                             transition={{ duration: 0.8, delay: 0.6 }}
                           />
@@ -446,8 +449,7 @@ const ProposalView = () => {
                             No
                           </span>
                           <span className="text-white">
-                            {proposal.noVotes} (
-                            {calculatePercentage(proposal.noVotes).toFixed(1)}%)
+                            {proposal.noVotes} ({calculatePercentage(proposal.noVotes).toFixed(1)}%)
                           </span>
                         </div>
                         <motion.div
@@ -460,9 +462,7 @@ const ProposalView = () => {
                             className="h-full bg-red-500 rounded-full"
                             initial={{ width: 0 }}
                             animate={{
-                              width: `${calculatePercentage(
-                                proposal.noVotes
-                              )}%`,
+                              width: `${calculatePercentage(proposal.noVotes)}%`,
                             }}
                             transition={{ duration: 0.8, delay: 0.7 }}
                           />
@@ -477,10 +477,7 @@ const ProposalView = () => {
                             Abstain
                           </span>
                           <span className="text-white">
-                            {proposal.abstainVotes} (
-                            {calculatePercentage(proposal.abstainVotes).toFixed(
-                              1
-                            )}
+                            {proposal.abstainVotes} ({calculatePercentage(proposal.abstainVotes).toFixed(1)}
                             %)
                           </span>
                         </div>
@@ -494,9 +491,7 @@ const ProposalView = () => {
                             className="h-full bg-gray-500 rounded-full"
                             initial={{ width: 0 }}
                             animate={{
-                              width: `${calculatePercentage(
-                                proposal.abstainVotes
-                              )}%`,
+                              width: `${calculatePercentage(proposal.abstainVotes)}%`,
                             }}
                             transition={{ duration: 0.8, delay: 0.8 }}
                           />
@@ -508,22 +503,14 @@ const ProposalView = () => {
                     {proposal.quorumRequired && (
                       <div className="pt-4 border-t border-white/10">
                         <div className="flex justify-between text-sm mb-2">
-                          <span className="text-daoship-text-gray">
-                            Quorum Required
-                          </span>
-                          <span className="text-white">
-                            {proposal.quorumRequired}%
-                          </span>
+                          <span className="text-daoship-text-gray">Quorum Required</span>
+                          <span className="text-white">{proposal.quorumRequired}%</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-daoship-text-gray">
-                            Total Votes
-                          </span>
+                          <span className="text-daoship-text-gray">Total Votes</span>
                           <span className="text-white">
-                            {proposal.yesVotes +
-                              proposal.noVotes +
-                              proposal.abstainVotes}{" "}
-                            / {proposal.totalPossibleVotes || "?"}
+                            {proposal.yesVotes + proposal.noVotes + proposal.abstainVotes} /{" "}
+                            {proposal.totalPossibleVotes || "?"}
                           </span>
                         </div>
                       </div>
@@ -539,9 +526,7 @@ const ProposalView = () => {
                     transition={{ type: "spring", stiffness: 300 }}
                   >
                     <GlassmorphicCard className="p-6">
-                      <h3 className="text-lg font-medium text-white mb-4">
-                        Cast Your Vote
-                      </h3>
+                      <h3 className="text-lg font-medium text-white mb-4">Cast Your Vote</h3>
 
                       <div className="space-y-3">
                         <button
@@ -551,8 +536,8 @@ const ProposalView = () => {
                             userVote === "yes"
                               ? "bg-green-500 text-white"
                               : userVote !== null
-                              ? "bg-white/5 text-white/50 cursor-not-allowed"
-                              : "bg-white/10 text-white hover:bg-green-500/20 hover:text-green-400"
+                                ? "bg-white/5 text-white/50 cursor-not-allowed"
+                                : "bg-white/10 text-white hover:bg-green-500/20 hover:text-green-400"
                           }`}
                         >
                           <CheckCircle className="h-5 w-5" />
@@ -566,8 +551,8 @@ const ProposalView = () => {
                             userVote === "no"
                               ? "bg-red-500 text-white"
                               : userVote !== null
-                              ? "bg-white/5 text-white/50 cursor-not-allowed"
-                              : "bg-white/10 text-white hover:bg-red-500/20 hover:text-red-400"
+                                ? "bg-white/5 text-white/50 cursor-not-allowed"
+                                : "bg-white/10 text-white hover:bg-red-500/20 hover:text-red-400"
                           }`}
                         >
                           <XCircle className="h-5 w-5" />
@@ -581,8 +566,8 @@ const ProposalView = () => {
                             userVote === "abstain"
                               ? "bg-gray-500 text-white"
                               : userVote !== null
-                              ? "bg-white/5 text-white/50 cursor-not-allowed"
-                              : "bg-white/10 text-white hover:bg-gray-500/20 hover:text-gray-400"
+                                ? "bg-white/5 text-white/50 cursor-not-allowed"
+                                : "bg-white/10 text-white hover:bg-gray-500/20 hover:text-gray-400"
                           }`}
                         >
                           <CircleDashed className="h-5 w-5" />

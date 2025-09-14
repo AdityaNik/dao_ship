@@ -1,19 +1,31 @@
 const express = require("express");
 const router = express.Router();
 const Proposal = require("../models/Proposal");
-const {
-  createProposal,
-  voteOnProposal,
-} = require("../services/algorand.service");
+const DAO = require("../models/DAO");
+const { createProposal, voteOnProposal } = require("../services/algorand.service");
 
 // Create a new proposal
 router.post("/", async (req, res) => {
   try {
     const { title, description, dao, creator, startTime, endTime } = req.body;
 
-    // Create proposal on Algorand
+    // Fetch the DAO to get its contract address
+    const daoObject = await DAO.findById(dao);
+    if (!daoObject) {
+      return res.status(404).json({ message: "DAO not found" });
+    }
+
+    console.log("Creating proposal for DAO:", {
+      daoId: dao,
+      contractAddress: daoObject.contractAddress,
+      title,
+      creator,
+    });
+
+    // Create proposal on Algorand with contract address
     const proposalId = await createProposal({
       dao,
+      contractAddress: daoObject.contractAddress,
       title,
       description,
       startTime,
@@ -24,6 +36,7 @@ router.post("/", async (req, res) => {
       title,
       description,
       dao,
+      contractAddress: daoObject.contractAddress,
       creator,
       startTime,
       endTime,
@@ -31,13 +44,13 @@ router.post("/", async (req, res) => {
     });
 
     await proposal.save();
+    console.log("Proposal created successfully:", proposal._id);
     res.status(201).json(proposal);
   } catch (error) {
+    console.error("Error creating proposal:", error);
     res.status(500).json({ message: error.message });
   }
 });
-
-
 
 // Get all proposals for a DAO
 router.get("/dao/:daoId", async (req, res) => {
@@ -99,8 +112,17 @@ router.get("/:id", async (req, res) => {
 // Vote on a proposal
 router.post("/:id/vote", async (req, res) => {
   try {
-    const { voter, vote, votingPower } = req.body;
-    const proposal = await Proposal.findById(req.params.id);
+    const { walletAddress, githubUsername, vote, votingPower = 1 } = req.body;
+
+    // Validate required fields
+    if (!walletAddress || !githubUsername || !vote) {
+      return res.status(400).json({
+        message: "Wallet address, GitHub username, and vote are required",
+      });
+    }
+
+    // Find the proposal and populate the DAO
+    const proposal = await Proposal.findById(req.params.id).populate("dao");
 
     if (!proposal) {
       return res.status(404).json({ message: "Proposal not found" });
@@ -110,31 +132,91 @@ router.post("/:id/vote", async (req, res) => {
       return res.status(400).json({ message: "Proposal is not active" });
     }
 
-    // Record vote on Algorand
-    await voteOnProposal({
-      proposalId: proposal.proposalId,
-      voter,
+    // Check if proposal has expired
+    if (new Date() > proposal.endTime) {
+      return res.status(400).json({ message: "Voting period has ended" });
+    }
+
+    // Validate that the user is a member of the DAO
+    const dao = proposal.dao;
+    const isMember = dao.members.some(
+      (member) =>
+        member.walletAddress.toLowerCase() === walletAddress.toLowerCase() ||
+        member.username?.toLowerCase() === githubUsername.toLowerCase(),
+    );
+
+    if (!isMember) {
+      return res.status(403).json({
+        message: "Only DAO members can vote on proposals",
+      });
+    }
+
+    // Check if user has already voted
+    const existingVote = proposal.votes.find(
+      (v) =>
+        v.walletAddress.toLowerCase() === walletAddress.toLowerCase() ||
+        v.githubUsername.toLowerCase() === githubUsername.toLowerCase(),
+    );
+
+    if (existingVote) {
+      return res.status(400).json({
+        message: "You have already voted on this proposal",
+      });
+    }
+
+    // Record vote on Algorand (if needed)
+    try {
+      await voteOnProposal({
+        proposalId: proposal.proposalId,
+        voter: walletAddress,
+        vote,
+        votingPower,
+      });
+    } catch (algorandError) {
+      console.log("Algorand voting error (continuing anyway):", algorandError.message);
+      // Continue even if Algorand fails, as we want to store the vote in our database
+    }
+
+    // Add the vote to the proposal
+    const newVote = {
+      walletAddress,
+      githubUsername,
       vote,
       votingPower,
-    });
+      votedAt: new Date(),
+    };
+
+    proposal.votes.push(newVote);
 
     // Update vote counts
-    proposal.votes.push({ voter, vote, votingPower });
     proposal[`${vote}Votes`] += votingPower;
 
-    // Check if proposal has ended
-    if (new Date() > proposal.endTime) {
-      const totalVotes =
-        proposal.yesVotes + proposal.noVotes + proposal.abstainVotes;
-      if (totalVotes >= proposal.dao.quorum) {
-        proposal.status =
-          proposal.yesVotes > proposal.noVotes ? "passed" : "failed";
+    // Check if proposal should be finalized
+    const totalVotes = proposal.yesVotes + proposal.noVotes + proposal.abstainVotes;
+
+    // Auto-finalize if voting period ended or if all members have voted
+    if (new Date() > proposal.endTime || proposal.votes.length >= dao.members.length) {
+      if (totalVotes > 0) {
+        proposal.status = proposal.yesVotes > proposal.noVotes ? "passed" : "failed";
       }
     }
 
     await proposal.save();
-    res.json(proposal);
+
+    // Return the updated proposal with vote counts
+    res.json({
+      ...proposal.toObject(),
+      message: "Vote recorded successfully",
+      voteStatus: {
+        totalVotes,
+        yesVotes: proposal.yesVotes,
+        noVotes: proposal.noVotes,
+        abstainVotes: proposal.abstainVotes,
+        userVote: newVote,
+      },
+    });
   } catch (error) {
+    console.error("Error recording vote:", error);
     res.status(500).json({ message: error.message });
   }
 });
