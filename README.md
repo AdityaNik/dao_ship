@@ -1,40 +1,67 @@
-## Create Aptos Dapp Boilerplate Template
+# 🏛️ DAO Creator Tool - Open Source Governance on Avalanche
 
-The Boilerplate template provides a starter dapp with all necessary dapp infrastructure and a simple wallet info implementation, transfer APT and a simple message board functionality to send and read a message on chain.
+> **Launch your DAO in under 5 minutes — no coding required.**  
+> A no-code DAO creation platform built on **Avalanche**, empowering open-source organizations to govern transparently, reward contributors fairly, and make decisions collectively.  
+> Contributors earn governance tokens **based on their GitHub contributions**.
 
-## Read the Boilerplate template docs
+---
 
-To get started with the Boilerplate template and learn more about the template functionality and usage, head over to the [Boilerplate template docs](https://learn.aptoslabs.com/en/dapp-templates/boilerplate-template)
+## 📌 Key Features
 
-## The Boilerplate template provides:
+- 🔧 **No-Code DAO Builder** – Drag-and-drop interface for instant DAO setup  
+- ⚡ **Powered by Avalanche** – Sub-second finality, ~4,500 TPS, low fees  
+- 🎖️ **Contribution-Based Rewards** – Automatic token distribution via GitHub activity  
+- 🔐 **Pre-Audited Smart Contracts** – Secure deployment of governance logic  
+- 🗳️ **Advanced Governance Models** – Quadratic voting, token-weighted proposals  
+- 📊 **Governance Dashboard** – Real-time proposal tracking & insights  
+- 📁 **On-Chain Audit Trail** – Immutable history of all DAO actions  
 
-- **Folder structure** - A pre-made dapp folder structure with a `frontend` and `contract` folders.
-- **Dapp infrastructure** - All required dependencies a dapp needs to start building on the Aptos network.
-- **Wallet Info implementation** - Pre-made `WalletInfo` components to demonstrate how one can use to read a connected Wallet info.
-- **Transfer APT implementation** - Pre-made `transfer` components to send APT to an address.
-- **Message board functionality implementation** - Pre-made `message` components to send and read a message on chain
+---
 
-## What tools the template uses?
+## 🧠 Why DAO Creator?
 
-- React framework
-- Vite development tool
-- shadcn/ui + tailwind for styling
-- Aptos TS SDK
-- Aptos Wallet Adapter
-- Node based Move commands
-- [Vite-pwa](https://vite-pwa-org.netlify.app/)
+| Problem                           | Our Solution                                      |
+|-----------------------------------|---------------------------------------------------|
+| Complex DAO setup                 | Zero-code builder with visual interface           |
+| High development costs            | 99.5% cheaper setup via prebuilt contracts        |
+| Long deployment cycles            | DAO live in 3–5 minutes                           |
+| Lack of contributor recognition   | Tokenized rewards for open-source contributions   |
+| Centralized repo governance       | Transparent DAO-based decision making             |
+| Expensive blockchains             | Avalanche ensures scalable, low-cost transactions |
 
-## What Move commands are available?
+---
 
-The tool utilizes [aptos-cli npm package](https://github.com/aptos-labs/aptos-cli) that lets us run Aptos CLI in a Node environment.
+## 🛠️ Tech Stack
 
-Some commands are built-in the template and can be ran as a npm script, for example:
+- **Frontend**: React.js + TypeScript  
+- **Backend**: Node.js, Express  
+- **Blockchain**: Avalanche C-Chain + Subnets  
+- **Smart Contracts**: Solidity (pre-audited governance templates)  
+- **Storage**: IPFS for proposals & metadata  
+- **Integration**: GitHub API for contribution tracking  
+- **Security**: AES encryption + on-chain audit logging  
 
-- `npm run move:publish` - a command to publish the Move contract
-- `npm run move:test` - a command to run Move unit tests
-- `npm run move:compile` - a command to compile the Move contract
-- `npm run move:upgrade` - a command to upgrade the Move contract
-- `npm run dev` - a command to run the frontend locally
-- `npm run deploy` - a command to deploy the dapp to Vercel
+---
 
-For all other available CLI commands, can run `npx aptos` and see a list of all available commands.
+## 🔄 How It Works
+
+1. **Connect Repository**  
+   - DAO Creator links with your GitHub org/repo.  
+
+2. **Track Contributions**  
+   - Commits, PRs, issues, and reviews are automatically mapped.  
+
+3. **Mint Contributor Tokens**  
+   - Members receive governance tokens proportional to their contributions.  
+
+4. **Govern Collectively**  
+   - Proposals are created, discussed, and voted on-chain with quadratic or token-weighted models.  
+
+5. **Transparent History**  
+   - All governance actions and proposals are permanently stored on Avalanche + IPFS.  
+
+---
+
+🔥 Stay tuned — upcoming features will include multi-repo DAOs, dynamic tokenomics, and advanced contributor analytics.  
+
+---
