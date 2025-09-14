@@ -21,6 +21,7 @@ interface ProposalDetailsProps {
       voter: string;
       vote: "yes" | "no";
     }>;
+    contractAddress: string;
     status: string;
     startDate: string;
     endDate: string;
@@ -37,18 +38,20 @@ const ProposalDetails: React.FC<ProposalDetailsProps> = ({
   const { address } = useAccount();
   const [hasVoted, setHasVoted] = useState(false);
   const [voteCount, setVoteCount] = useState({ yes: 0, no: 0 });
-  const [writeContract] = useWriteContract();
+  const writeContract = useWriteContract();
 
   useEffect(() => {
     // Calculate vote counts
     const yesVotes = proposal.votes.filter((v) => v.vote === "yes").length;
     const noVotes = proposal.votes.filter((v) => v.vote === "no").length;
     setVoteCount({ yes: yesVotes, no: noVotes });
+    console.log("proposal: ", proposal);
 
     // Check if current user has voted
     setHasVoted(proposal.votes.some((v) => v.voter === address));
+    
   }, [proposal, address]);
-
+ 
   const handleVote = async (vote: "yes" | "no") => {
     if (!address) {
       toast({
@@ -59,14 +62,6 @@ const ProposalDetails: React.FC<ProposalDetailsProps> = ({
       return;
     }
 
-    writeContract({
-      address: proposal.dao_address,
-      abi: daoShipContract.abi,
-      functionName: "stakeAndVote",
-      args: [proposal._id, parseEther("1"), vote === "yes"],
-      chain: avalancheFuji,
-      account: address
-    })
 
     try {
       const response = await fetch(`/api/dao/proposals/${proposal._id}/vote`, {

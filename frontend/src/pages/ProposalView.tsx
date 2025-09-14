@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Users, Clock, CheckCircle, XCircle, CircleDashed, Send, AlertCircle } from "lucide-react";
-import { useAccount } from "wagmi";
+import { useAccount, useWriteContract } from "wagmi";
 import { useGitHubAuth } from "@/hooks/useGitHubAuth";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
@@ -11,6 +11,9 @@ import GradientButton from "@/components/ui/gradient-button";
 import { getProposal, voteOnProposal } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import { daoShipContract } from "@/contracts/contract";
+import { avalancheFuji } from "viem/chains";
+import { parseEther } from "viem";
 
 const ProposalView = () => {
   const { daoId, proposalId } = useParams();
@@ -24,6 +27,9 @@ const ProposalView = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
   const { toast } = useToast();
+
+  const writeContract = useWriteContract();
+  const { address } = useAccount();
 
   useEffect(() => {
     if (daoId && proposalId) {
@@ -107,7 +113,7 @@ const ProposalView = () => {
     }
 
     // Check if wallet is connected
-    if (!isConnected || !walletAddress) {
+    if (!isConnected || !address) {
       toast({
         title: "Wallet not connected",
         description: "Please connect your wallet to vote on this proposal.",
@@ -115,6 +121,7 @@ const ProposalView = () => {
       });
       return;
     }
+
 
     // Check if GitHub is authenticated
     if (!githubUsername) {
@@ -127,7 +134,7 @@ const ProposalView = () => {
     }
 
     try {
-      console.log("Casting vote:", { voteType, walletAddress, githubUsername });
+      console.log("Casting vote:", { voteType, address, githubUsername });
 
       const voteData = {
         vote: voteType,
@@ -135,6 +142,24 @@ const ProposalView = () => {
         githubUsername,
         votingPower: 1,
       };
+
+      try {
+        writeContract.writeContract({
+          address: proposal.contractAddress as `0x${string}`,
+          abi: daoShipContract.abi,
+          functionName: "stakeAndVote",
+          args: [proposal._id, parseEther("10"), voteType === "yes"],
+          chain: avalancheFuji,
+          account: address as `0x${string}`
+        })
+      } catch (error) {
+        console.error("Error casting vote:", error);
+        toast({
+          title: "Error",
+          description: "Failed to cast your vote. Please try again.",
+          variant: "destructive",
+        });
+      }
 
       const result = await voteOnProposal(daoId, proposalId, voteData);
       setUserVote(voteType);
@@ -277,13 +302,12 @@ const ProposalView = () => {
                 <div className="flex items-center gap-4 flex-wrap">
                   <h1 className="text-3xl md:text-4xl font-bold gradient-text">{proposal.title}</h1>
                   <span
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      proposal.status === "active"
+                    className={`px-3 py-1 rounded-full text-sm ${proposal.status === "active"
                         ? "bg-green-500/20 text-green-400"
                         : proposal.status === "passed"
                           ? "bg-blue-500/20 text-blue-400"
                           : "bg-red-500/20 text-red-400"
-                    }`}
+                      }`}
                   >
                     {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
                   </span>
@@ -532,13 +556,12 @@ const ProposalView = () => {
                         <button
                           onClick={() => handleVote("yes")}
                           disabled={userVote !== null}
-                          className={`w-full p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                            userVote === "yes"
+                          className={`w-full p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${userVote === "yes"
                               ? "bg-green-500 text-white"
                               : userVote !== null
                                 ? "bg-white/5 text-white/50 cursor-not-allowed"
                                 : "bg-white/10 text-white hover:bg-green-500/20 hover:text-green-400"
-                          }`}
+                            }`}
                         >
                           <CheckCircle className="h-5 w-5" />
                           Vote Yes
@@ -547,13 +570,12 @@ const ProposalView = () => {
                         <button
                           onClick={() => handleVote("no")}
                           disabled={userVote !== null}
-                          className={`w-full p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                            userVote === "no"
+                          className={`w-full p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${userVote === "no"
                               ? "bg-red-500 text-white"
                               : userVote !== null
                                 ? "bg-white/5 text-white/50 cursor-not-allowed"
                                 : "bg-white/10 text-white hover:bg-red-500/20 hover:text-red-400"
-                          }`}
+                            }`}
                         >
                           <XCircle className="h-5 w-5" />
                           Vote No
@@ -562,13 +584,12 @@ const ProposalView = () => {
                         <button
                           onClick={() => handleVote("abstain")}
                           disabled={userVote !== null}
-                          className={`w-full p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                            userVote === "abstain"
+                          className={`w-full p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${userVote === "abstain"
                               ? "bg-gray-500 text-white"
                               : userVote !== null
                                 ? "bg-white/5 text-white/50 cursor-not-allowed"
                                 : "bg-white/10 text-white hover:bg-gray-500/20 hover:text-gray-400"
-                          }`}
+                            }`}
                         >
                           <CircleDashed className="h-5 w-5" />
                           Abstain
