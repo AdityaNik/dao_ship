@@ -29,9 +29,4 @@ export default defineConfig(({ mode }) => ({
     },
     include: ["buffer"],
   },
-  build: {
-    rollupOptions: {
-      external: ["@perawallet/connect"],
-    },
-  },
 }));
